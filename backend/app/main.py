@@ -1,13 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.routes import faq, knowledge
 
 app = FastAPI(
-    title="AI Virtual Information Assistant",
-    description="An AI-powered virtual information assistant that provides users with accurate and relevant information based on their queries.",
+    title="AI Voice Agent API",
+    description="University Information Centre Voice Assistant",
     version="1.0.0",
 )
 
+# Frontend connection
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -19,18 +21,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Register API routers
+app.include_router(
+    faq.router,
+    prefix="/api",
+)
 
-@app.get("/")
-async def root():
-    return {"message": "Welcome to the AI Virtual Information Assistant API!"}
+app.include_router(
+    knowledge.router,
+    prefix="/api",
+)
 
 
 @app.get("/api/health")
-
-async def health_check():
+def health_check():
     return {
         "status": "healthy",
-        "application": "AI Virtual Information Assistant",
-        "backend": "FastAPI",
-        }
-
+        "service": "AI Voice Agent API",
+    }
