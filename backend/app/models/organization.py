@@ -29,6 +29,12 @@ class Organisation(Base):
         nullable=False,
     )
 
+    contacts = relationship(
+    "UniversityContact",
+    back_populates="organisation",
+    cascade="all, delete-orphan",
+)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

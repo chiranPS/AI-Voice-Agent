@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
-from app.api.routes import faq, knowledge
+from app.api.routes import chat
+from app.api.routes import faq, knowledge, contacts
 
 app = FastAPI(
     title="AI Voice Agent API",
@@ -32,6 +32,12 @@ app.include_router(
     prefix="/api",
 )
 
+app.include_router(
+    chat.router,
+    prefix="/api",
+)
+
+app.include_router(contacts.router, prefix="/api")
 
 @app.get("/api/health")
 def health_check():
