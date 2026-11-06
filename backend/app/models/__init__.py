@@ -5,3 +5,7 @@ from app.models.faq_embedding import FAQEmbedding
 from app.models.conversation_session import ConversationSession
 from app.models.conversation_message import ConversationMessage
 from app.models.university_contact import UniversityContact
+from app.models.admin_user import AdminUser
+from app.models.organization import Organisation
+from app.models.knowledge_document import KnowledgeDocument
+from app.models.knowledge_document_chunk import KnowledgeDocumentChunk

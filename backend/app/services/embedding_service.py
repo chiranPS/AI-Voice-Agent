@@ -68,3 +68,35 @@ def generate_query_embedding(question: str) -> list[float]:
         )
 
     return values
+
+def generate_document_chunk_embedding(
+    title: str,
+    content: str,
+) -> list[float]:
+    """
+    Generate an embedding for an extracted document chunk.
+    """
+
+    text = (
+        f"task: search result | "
+        f"title: {title} | "
+        f"text: {content}"
+    )
+
+    response = client.models.embed_content(
+        model=EMBEDDING_MODEL,
+        contents=text,
+        config=types.EmbedContentConfig(
+            output_dimensionality=EMBEDDING_DIMENSIONS,
+        ),
+    )
+
+    values = response.embeddings[0].values
+
+    if len(values) != EMBEDDING_DIMENSIONS:
+        raise ValueError(
+            f"Expected {EMBEDDING_DIMENSIONS} dimensions, "
+            f"received {len(values)}"
+        )
+
+    return values
