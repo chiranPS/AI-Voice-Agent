@@ -17,6 +17,7 @@ from app.api.routes.admin_auth import get_current_admin
 from app.schemas.document import (
     DocumentResponse,
     DocumentUploadResponse,
+    DocumentUpdateRequest,
 )
 
 from app.services.document_service import (
@@ -64,6 +65,7 @@ async def create_document(
         "document": document,
     }
 
+
 @router.get(
     "/",
     response_model=list[DocumentResponse],
@@ -101,6 +103,42 @@ def document_details(
 
     return document
 
+
+@router.patch(
+    "/{document_id}",
+    response_model=DocumentResponse,
+)
+def update_document_metadata(
+    document_id: uuid.UUID,
+    payload: DocumentUpdateRequest,
+    db: Session = Depends(get_db),
+    current_admin=Depends(get_current_admin),
+):
+    document = get_document_by_id(
+        db=db,
+        organisation_id=current_admin.organisation_id,
+        document_id=document_id,
+    )
+
+    if not document:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found.",
+        )
+
+    if payload.title is not None and payload.title.strip():
+        document.title = payload.title.strip()
+    if payload.description is not None:
+        document.description = payload.description.strip() if payload.description else None
+    if payload.category is not None:
+        document.category = payload.category.strip() if payload.category else None
+
+    db.commit()
+    db.refresh(document)
+
+    return document
+
+
 @router.post(
     "/{document_id}/process",
 )
@@ -122,7 +160,9 @@ def process_document(
         ),
         "total_chunks": result["total_chunks"],
         "total_pages": result["total_pages"],
-    }   
+    }
+
+
 @router.post(
     "/{document_id}/publish",
 )
@@ -131,7 +171,6 @@ def publish_knowledge_document(
     db: Session = Depends(get_db),
     current_admin=Depends(get_current_admin),
 ):
-
     document = get_document_by_id(
         db=db,
         organisation_id=current_admin.organisation_id,
@@ -156,7 +195,7 @@ def publish_knowledge_document(
         ),
     }
 
-    
+
 @router.delete("/{document_id}")
 def remove_document(
     document_id: uuid.UUID,

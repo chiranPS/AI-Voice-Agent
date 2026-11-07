@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AvatarType } from "../../avatar/types/avatar.types";
+import { prepareSpeechText } from "../../../utils/speechText";
 
 /**
  * Enhanced Speech Synthesis Hook supporting Persona Voices (Male & Female)
@@ -95,14 +96,14 @@ export const useSpeechSynthesis = (defaultAvatarType: AvatarType = "female") => 
         return;
       }
 
-      const cleanText = text.trim();
-      if (!cleanText) return;
+      const speechText = prepareSpeechText(text);
+      if (!speechText) return;
 
       // Barge-in: Cancel any currently playing speech immediately
       window.speechSynthesis.cancel();
       setError(null);
 
-      const utterance = new SpeechSynthesisUtterance(cleanText);
+      const utterance = new SpeechSynthesisUtterance(speechText);
       currentUtteranceRef.current = utterance;
 
       const { voice, pitch, rate } = getPersonaVoice(persona);

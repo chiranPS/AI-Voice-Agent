@@ -19,37 +19,6 @@ function AvatarLoading() {
     );
 }
 
-/**
- * Clean circular podium platform to ground the 3D character in space.
- */
-function PedestalPlatform() {
-    return (
-        <group position={[0, -0.82, 0]}>
-            {/* Upper Platform Disc */}
-            <mesh position={[0, -0.015, 0]} receiveShadow>
-                <cylinderGeometry args={[0.72, 0.76, 0.03, 48]} />
-                <meshStandardMaterial
-                    color="#f1f5f9"
-                    metalness={0.4}
-                    roughness={0.3}
-                />
-            </mesh>
-
-            {/* Glowing Light Blue Rim Accent */}
-            <mesh position={[0, 0.001, 0]}>
-                <ringGeometry args={[0.68, 0.72, 48]} />
-                <meshBasicMaterial color="#38bdf8" toneMapped={false} />
-            </mesh>
-
-            {/* Soft Ambient Ground Halo */}
-            <mesh position={[0, -0.035, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[0.5, 0.95, 32]} />
-                <meshBasicMaterial color="#0284c7" transparent opacity={0.12} />
-            </mesh>
-        </group>
-    );
-}
-
 export default function AvatarScene({
     gender,
     animation,
@@ -65,7 +34,7 @@ export default function AvatarScene({
             className="h-full w-full"
         >
             <Suspense fallback={<AvatarLoading />}>
-                {/* Studio Lighting */}
+                {/* Studio Ambient Light */}
                 <ambientLight intensity={1.3} />
 
                 {/* Key Light */}
@@ -82,15 +51,12 @@ export default function AvatarScene({
                     color="#e0f2fe"
                 />
 
-                {/* Rim / Back Light to separate silhouette from background */}
+                {/* Rim / Back Light to give character professional silhouette depth */}
                 <directionalLight
                     position={[0, 3, -2.5]}
                     intensity={1.0}
                     color="#ffffff"
                 />
-
-                {/* Grounding Podium */}
-                <PedestalPlatform />
 
                 {/* The 3D Avatar Character */}
                 <AvatarModel
@@ -98,7 +64,7 @@ export default function AvatarScene({
                     animation={animation}
                 />
 
-                {/* Locked / Polished kiosk angle */}
+                {/* Standard stable kiosk framing */}
                 <OrbitControls
                     enablePan={false}
                     enableZoom={false}

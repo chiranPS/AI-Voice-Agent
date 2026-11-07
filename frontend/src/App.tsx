@@ -1,23 +1,17 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import {
-  Mic,
-  Volume2,
-  Loader2,
-  CheckCircle2,
-  User,
-  Hand,
-} from "lucide-react";
+import { User, Hand } from "lucide-react";
 import KioskLayout from "./components/layout/KioskLayout";
 import KioskHeader from "./features/chat/components/KioskHeader";
+import AssistantStatusBar from "./features/chat/components/AssistantStatusBar";
 import KioskChatOverlay from "./features/chat/components/KioskChatOverlay";
-import KioskInputBar from "./features/chat/components/KioskInputBar";
+import KioskBottomNav from "./features/chat/components/KioskBottomNav";
 import FaqShortcutsDrawer from "./features/chat/components/FaqShortcutsDrawer";
 import AvatarStage, { type AvatarAgentState } from "./features/avatar/components/AvatarStage";
-import type { AgentState } from "@livekit/components-react";
 
 import { useChat } from "./features/chat/hooks/useChat";
 import { useSpeechRecognition } from "./features/chat/hooks/useSpeechRecognition";
 import { useSpeechSynthesis } from "./features/chat/hooks/useSpeechSynthesis";
+import { prepareSpeechText } from "./utils/speechText";
 import type { AvatarType } from "./features/avatar/types/avatar.types";
 
 const INACTIVITY_TIMEOUT_MS = 90000; // 90 seconds auto-reset for public kiosk
@@ -69,27 +63,11 @@ export const App = () => {
     return "idle";
   }, [isWaving, isListening, isLoading, isSpeaking]);
 
-  // Agent state for the status badge
-  const visualizerState: AgentState = useMemo(() => {
-    if (isListening) return "listening";
-    if (isLoading) return "thinking";
-    if (isSpeaking) return "speaking";
-    return "listening";
-  }, [isListening, isLoading, isSpeaking]);
-
   const assistantName = selectedAvatar === "male" ? "Alex" : "Sophia";
   const assistantRole =
     selectedAvatar === "male"
       ? "Lead Academic Advisor"
       : "Senior Campus Concierge";
-
-  const statusLabel = useMemo(() => {
-    if (isWaving) return `${assistantName} is welcoming you!`;
-    if (isListening) return "Listening to your voice...";
-    if (isLoading) return "Searching university records...";
-    if (isSpeaking) return `${assistantName} is responding...`;
-    return `${assistantName} is ready to assist`;
-  }, [isWaving, isListening, isLoading, isSpeaking, assistantName]);
 
   // Trigger interactive wave greeting
   const handleTriggerWave = () => {
@@ -97,7 +75,7 @@ export const App = () => {
     setIsWaving(true);
     if (voiceResponsesEnabled && isSpeechSupported) {
       speak(
-        `Hello! Welcome to North Star University. I am ${assistantName}, your virtual concierge. How may I assist you today?`,
+        `Hello! Welcome to Northstar University. I am ${assistantName}, your virtual concierge. How may I assist you today?`,
         selectedAvatar
       );
     }
@@ -157,11 +135,12 @@ export const App = () => {
     lastSpokenMessageId.current = lastMessage.id;
 
     if (voiceResponsesEnabled && isSpeechSupported) {
-      speak(lastMessage.content, selectedAvatar);
+      const speechText = prepareSpeechText(lastMessage.content);
+      speak(speechText, selectedAvatar);
     }
   }, [messages, selectedAvatar, isSpeechSupported, voiceResponsesEnabled, speak]);
 
-  // Voice button toggle
+  // Voice microphone toggle
   const handleVoiceButtonClick = () => {
     if (isListening) {
       stopListening();
@@ -175,7 +154,8 @@ export const App = () => {
   const handleReplayMessage = (text: string) => {
     cancelSpeech();
     if (isSpeechSupported) {
-      speak(text, selectedAvatar);
+      const speechText = prepareSpeechText(text);
+      speak(speechText, selectedAvatar);
     }
   };
 
@@ -198,7 +178,11 @@ export const App = () => {
 
   return (
     <KioskLayout>
-      {/* 1. Top Modernized Kiosk Header Card */}
+      {/* ─────────────────────────────────────────────────────────────
+          1. TOP UNIVERSITY HEADER CARD
+          [🎓] NORTHSTAR UNIVERSITY             [ 🌐 EN ▾ | ♿ | ⛶ ]
+               VIRTUAL INFORMATION KIOSK
+         ───────────────────────────────────────────────────────────── */}
       <KioskHeader
         onResetSession={handleResetSession}
         onToggleShortcuts={() => setIsShortcutsOpen(true)}
@@ -206,29 +190,41 @@ export const App = () => {
         onToggleVoice={handleToggleVoiceResponses}
       />
 
-      {/* 2. Unified Kiosk Card Enclosure:
-          Combines 3D Avatar Assistant Stage & Interactive Concierge Hub into ONE seamless enclosure.
-          - Mobile / Portrait: Stacked vertical flow inside a single rounded kiosk enclosure
-          - Desktop (lg+): 2-column split within the same enclosure with subtle inner divider
-      */}
-      <main className="relative flex flex-1 min-h-0 flex-col overflow-hidden w-full px-0.5 pb-1">
-        <div className="relative flex flex-1 min-h-0 flex-col lg:grid lg:grid-cols-12 rounded-3xl border border-sky-200/90 bg-gradient-to-b from-white via-white to-sky-50/20 shadow-lg shadow-blue-950/5 backdrop-blur-xl overflow-hidden w-full">
-          
-          {/* PANE 1: Virtual Concierge 3D Stage (Desktop: 5 cols, Mobile/Portrait: Upper Section) */}
-          <section className="relative flex flex-col justify-between items-center p-3.5 sm:p-5 lg:p-6 lg:border-r border-b lg:border-b-0 border-sky-100/90 lg:col-span-5 h-[39vh] sm:h-[43vh] lg:h-full min-h-[260px] w-full overflow-hidden bg-gradient-to-b from-sky-50/20 via-transparent to-transparent">
-            
-            {/* Persona Switcher with Role Details */}
+      {/* ─────────────────────────────────────────────────────────────
+          2. VIRTUAL ASSISTANT STATUS BAR CARD
+          [ 💬 ] VIRTUAL ASSISTANT               ● Available
+                 How can we help you?
+         ───────────────────────────────────────────────────────────── */}
+      <AssistantStatusBar
+        assistantName={assistantName}
+        avatarState={avatarState}
+        isOnline={true}
+      />
+
+      {/* ─────────────────────────────────────────────────────────────
+          3. UNIFIED KIOSK WORKSPACE: AVATAR & CHAT COMBINED INTO ONE
+          Single seamless rounded enclosure combining the 3D Virtual
+          Assistant on the left and the Interactive Conversation on the right.
+         ───────────────────────────────────────────────────────────── */}
+      <main className="relative flex flex-1 min-h-0 w-full flex-col rounded-3xl border border-[#E2E8F0] bg-white shadow-xs overflow-hidden">
+        <div className="relative flex flex-1 min-h-0 flex-col md:grid md:grid-cols-12 overflow-hidden w-full">
+          {/* LEFT PANE: 3D Avatar Character Concierge (Desktop & Tablet: 5 cols) */}
+          <section
+            aria-label="3D Virtual Assistant Concierge"
+            className="relative flex flex-col justify-between items-center p-3.5 sm:p-5 md:p-6 md:border-r border-b md:border-b-0 border-[#E2E8F0] md:col-span-5 h-[36vh] sm:h-[40vh] md:h-full min-h-[250px] w-full overflow-hidden bg-gradient-to-b from-[#F8FAFC] to-white"
+          >
+            {/* Top Controls: Persona Switcher & Wave Greeting */}
             <div className="relative z-20 flex w-full items-center justify-between shrink-0 gap-2">
               {/* Persona Switcher Pill */}
-              <div className="inline-flex items-center rounded-2xl border border-sky-200/90 bg-slate-100/90 p-1 gap-1 shadow-2xs backdrop-blur-sm">
+              <div className="inline-flex items-center rounded-full border border-[#E2E8F0] bg-white p-1 gap-1 shadow-2xs">
                 <button
                   type="button"
                   disabled={isLoading}
                   onClick={() => handleAvatarChange("male")}
-                  className={`flex items-center gap-1.5 rounded-xl px-3 sm:px-4 py-1.5 text-xs transition-all duration-300 ${
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-all duration-200 ${
                     selectedAvatar === "male"
-                      ? "bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 text-white font-bold shadow-sm shadow-blue-500/25"
-                      : "text-slate-600 hover:text-blue-950 hover:bg-white/70 font-medium"
+                      ? "bg-[#1769D2] text-white font-bold shadow-2xs"
+                      : "text-[#142D50] hover:bg-slate-100 font-semibold"
                   }`}
                 >
                   <User className="h-3.5 w-3.5" />
@@ -239,10 +235,10 @@ export const App = () => {
                   type="button"
                   disabled={isLoading}
                   onClick={() => handleAvatarChange("female")}
-                  className={`flex items-center gap-1.5 rounded-xl px-3 sm:px-4 py-1.5 text-xs transition-all duration-300 ${
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-all duration-200 ${
                     selectedAvatar === "female"
-                      ? "bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 text-white font-bold shadow-sm shadow-blue-500/25"
-                      : "text-slate-600 hover:text-blue-950 hover:bg-white/70 font-medium"
+                      ? "bg-[#1769D2] text-white font-bold shadow-2xs"
+                      : "text-[#142D50] hover:bg-slate-100 font-semibold"
                   }`}
                 >
                   <User className="h-3.5 w-3.5" />
@@ -250,91 +246,80 @@ export const App = () => {
                 </button>
               </div>
 
-              {/* Interactive "Wave / Greet" Action Button */}
+              {/* Interactive Wave Greet Action Button */}
               <button
                 type="button"
                 disabled={isLoading || isWaving}
                 onClick={handleTriggerWave}
                 title="Make assistant wave and greet you"
-                className="flex items-center gap-1.5 rounded-xl border border-sky-200 bg-white/90 px-3 py-1.5 text-xs font-bold text-blue-700 shadow-2xs hover:border-blue-400 hover:bg-sky-50 transition active:scale-95"
+                className="flex items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-white px-3 py-1 text-xs font-bold text-[#1769D2] shadow-2xs hover:border-blue-300 hover:bg-blue-50 transition active:scale-95"
               >
-                <Hand className="h-3.5 w-3.5 text-blue-600" />
+                <Hand className="h-3.5 w-3.5 text-[#1769D2]" />
                 <span>Say Hello</span>
               </button>
             </div>
 
-            {/* Central 3D Avatar Viewport - Life-Sized, Prominent & Unconstrained */}
-            <div className="relative flex-1 w-full h-full min-h-[190px] sm:min-h-[250px] lg:min-h-[440px] my-auto py-1 flex items-center justify-center overflow-hidden">
+            {/* Central 3D Avatar Viewport with Life-Sized Waist-Up Framing */}
+            <div className="relative flex-1 w-full h-full min-h-[200px] sm:min-h-[250px] md:min-h-[320px] my-auto py-1 flex items-center justify-center overflow-hidden">
               <AvatarStage
                 gender={selectedAvatar}
                 state={avatarState}
               />
             </div>
 
-            {/* Live Reactive State Badge Bar */}
-            <div className="relative z-10 flex flex-col items-center gap-1.5 shrink-0 w-full">
-              <div className="inline-flex items-center gap-2.5 rounded-2xl border border-sky-200 bg-white/95 px-5 py-2 text-xs font-bold text-slate-800 shadow-sm backdrop-blur-md">
-                {visualizerState === "listening" ? (
-                  <div className="flex items-center gap-1.5 text-emerald-600">
-                    <Mic className="h-4 w-4 animate-pulse" />
-                    <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
-                  </div>
-                ) : visualizerState === "thinking" ? (
-                  <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
-                ) : visualizerState === "speaking" ? (
-                  <div className="flex items-center gap-1 text-emerald-600">
-                    <Volume2 className="h-4 w-4 animate-bounce" />
-                    <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  </div>
-                ) : (
-                  <CheckCircle2 className="h-4 w-4 text-blue-600" />
-                )}
-                <span>{statusLabel}</span>
-              </div>
-
-              <p className="hidden lg:block text-xs font-medium text-slate-500 text-center">
-                {assistantName} ({assistantRole})
+            {/* Bottom Persona Identity Tag */}
+            <div className="relative z-10 shrink-0 text-center">
+              <p className="text-[11px] sm:text-xs font-bold text-[#142D50]">
+                {assistantName} • <span className="text-[#64748B] font-semibold">{assistantRole}</span>
               </p>
             </div>
           </section>
 
-          {/* PANE 2: Interactive Concierge Conversation & Voice Input Dock */}
-          <section className="relative z-20 flex flex-1 min-h-0 flex-col justify-between p-3 sm:p-5 lg:p-6 lg:col-span-7 h-full w-full overflow-hidden bg-white/50">
-            {/* Conversation Messages / Attractor Grid */}
-            <div className="flex-1 min-h-0 overflow-hidden w-full">
-              <KioskChatOverlay
-                messages={messages}
-                isLoading={isLoading}
-                selectedAvatar={selectedAvatar}
-                interimTranscript={interimTranscript}
-                onSelectSuggestion={(q) => {
-                  cancelSpeech();
-                  sendMessage(q);
-                }}
-                onReplayMessage={handleReplayMessage}
-                onClearConversation={handleResetSession}
-              />
-            </div>
-
-            {/* Integrated Kiosk Input Bar */}
-            <div className="shrink-0 w-full pt-2 sm:pt-3">
-              <KioskInputBar
-                onSendMessage={(msg) => {
-                  cancelSpeech();
-                  sendMessage(msg);
-                }}
-                onToggleVoice={handleVoiceButtonClick}
-                onOpenShortcuts={() => setIsShortcutsOpen(true)}
-                isListening={isListening}
-                isLoading={isLoading}
-                speechError={speechRecognitionError || error}
-              />
-            </div>
+          {/* RIGHT PANE: Dedicated Conversation & Touch Input (Desktop & Tablet: 7 cols) */}
+          <section
+            aria-label="Conversation and Touch Input"
+            className="relative flex flex-1 min-h-0 flex-col md:col-span-7 h-full w-full overflow-hidden bg-white"
+          >
+            <KioskChatOverlay
+              messages={messages}
+              isLoading={isLoading}
+              selectedAvatar={selectedAvatar}
+              interimTranscript={interimTranscript}
+              onReplayMessage={handleReplayMessage}
+              onClearConversation={handleResetSession}
+              onSendMessage={(msg) => {
+                cancelSpeech();
+                sendMessage(msg);
+              }}
+              onToggleVoice={handleVoiceButtonClick}
+              isListening={isListening}
+              speechError={speechRecognitionError || error}
+            />
           </section>
         </div>
       </main>
 
-      {/* 3. Suggested FAQ Topics Drawer / Modal */}
+      {/* ─────────────────────────────────────────────────────────────
+          4. FLOATING BOTTOM NAVIGATION DOCK
+          [ (⌂ Home) | ⊞ Categories | ılı Voice | ⟲ Reset | ⚙ Settings ]
+         ───────────────────────────────────────────────────────────── */}
+      <KioskBottomNav
+        activeTab="home"
+        onHome={() => {
+          if (messages.length > 0) {
+            handleResetSession();
+          }
+        }}
+        onCategories={() => setIsShortcutsOpen(true)}
+        voiceEnabled={voiceResponsesEnabled}
+        onToggleVoice={handleToggleVoiceResponses}
+        onReset={handleResetSession}
+        onSettings={() => setIsShortcutsOpen(true)}
+      />
+
+      {/* ─────────────────────────────────────────────────────────────
+          5. SUGGESTED FAQ TOPICS DRAWER
+         ───────────────────────────────────────────────────────────── */}
       <FaqShortcutsDrawer
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}

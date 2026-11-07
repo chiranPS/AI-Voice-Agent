@@ -1,24 +1,22 @@
 import { useState, type FormEvent, type KeyboardEvent } from "react";
-import { Mic, MicOff, Sparkles, Send, X } from "lucide-react";
+import { Mic, MicOff, Send, X, AlertCircle } from "lucide-react";
 
 interface KioskInputBarProps {
   onSendMessage: (message: string) => void;
   onToggleVoice: () => void;
-  onOpenShortcuts?: () => void;
   isListening: boolean;
   isLoading: boolean;
   speechError?: string | null;
 }
 
 /**
- * Modern UI Kiosk Input Dock
- * Touchscreen-optimized floating bar featuring an oversized tactile microphone button,
- * live speech state alerts, and quick topic launchers.
+ * Integrated Touchscreen Input Bar
+ * Perfectly matching the conversation card input dock from the reference design:
+ * [ (🎤) ] [  Type your question...  (x) ] [ (➤) ]
  */
 export const KioskInputBar = ({
   onSendMessage,
   onToggleVoice,
-  onOpenShortcuts,
   isListening,
   isLoading,
   speechError,
@@ -42,108 +40,96 @@ export const KioskInputBar = ({
   };
 
   return (
-    <div className="relative w-full max-w-full">
-      {/* Listening Live Floating Banner */}
+    <div className="relative w-full shrink-0">
+      {/* ── Active Speech Recognition Floating Alert ── */}
       {isListening && (
-        <div className="absolute -top-11 left-1/2 -translate-x-1/2 flex items-center gap-2.5 whitespace-nowrap rounded-full border border-emerald-300 bg-emerald-50 px-5 py-2 text-xs font-bold text-emerald-800 shadow-lg shadow-emerald-900/10 animate-bounce">
-          <span className="relative flex h-2.5 w-2.5">
+        <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-2 whitespace-nowrap rounded-full border border-emerald-300 bg-emerald-50 px-3.5 py-1 text-xs font-bold text-emerald-800 shadow-md animate-bounce z-30">
+          <span className="relative flex h-2 w-2">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-600" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-600" />
           </span>
-          <span>Listening to your question... Speak naturally</span>
+          <span>Listening... speak naturally</span>
         </div>
       )}
 
-      {/* Voice Error Bubble if mic error occurred */}
+      {/* ── Speech Recognition Error Banner ── */}
       {!isListening && speechError && (
-        <div className="absolute -top-10 left-1/2 -translate-x-1/2 max-w-[92%] truncate rounded-full border border-red-300 bg-red-50 px-4 py-1.5 text-xs font-semibold text-red-700 shadow-sm">
-          {speechError}
+        <div className="absolute -top-9 left-1/2 -translate-x-1/2 max-w-[92%] truncate rounded-full border border-rose-300 bg-rose-50 px-3 py-0.5 text-[11px] font-semibold text-rose-700 shadow-xs z-30 flex items-center gap-1.5">
+          <AlertCircle className="h-3 w-3 text-rose-600 shrink-0" />
+          <span className="truncate">{speechError}</span>
         </div>
       )}
 
-      {/* Main Glassmorphic Capsule */}
+      {/* ── Main Input Bar Container ── */}
       <form
         onSubmit={handleSubmit}
-        className={`relative flex items-center justify-between rounded-full border bg-white p-2 pl-5 sm:pl-7 shadow-md shadow-blue-900/5 transition-all w-full overflow-hidden ${
-          isListening
-            ? "border-emerald-500 ring-4 ring-emerald-100/80"
-            : "border-sky-300/80 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-sky-100"
-        }`}
+        className="flex items-center gap-2 w-full pt-1"
       >
-        {/* Text Input */}
-        <input
-          type="text"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={
+        {/* 1. Left Circular Blue Microphone Button */}
+        <button
+          type="button"
+          onClick={onToggleVoice}
+          disabled={isLoading}
+          title={isListening ? "Stop listening" : "Tap to speak question"}
+          aria-label={isListening ? "Stop listening" : "Tap to speak question"}
+          className={`flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full transition-all active:scale-95 shrink-0 shadow-xs ${
             isListening
-              ? "Listening to your voice..."
-              : "Ask anything about Northstar University..."
-          }
-          disabled={isLoading || isListening}
-          aria-label="Your question"
-          className="w-full min-w-0 bg-transparent pr-3 text-sm sm:text-base font-medium text-slate-900 placeholder-slate-400 outline-none disabled:opacity-50"
-        />
+              ? "bg-rose-600 text-white animate-pulse ring-4 ring-rose-200"
+              : "bg-[#1769D2] text-white hover:bg-blue-700 shadow-blue-500/20"
+          }`}
+        >
+          {isListening ? (
+            <MicOff className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-white" />
+          ) : (
+            <Mic className="h-4.5 w-4.5 sm:h-5 sm:w-5 text-white" />
+          )}
+        </button>
 
-        {/* Clear typed text button */}
-        {message && !isLoading && (
-          <button
-            type="button"
-            onClick={() => setMessage("")}
-            title="Clear text"
-            className="mr-2 flex h-7 w-7 items-center justify-center rounded-full text-slate-400 hover:bg-sky-50 hover:text-blue-600 transition"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
+        {/* 2. Middle Pill-Shaped Input Capsule */}
+        <div
+          className={`relative flex items-center flex-1 rounded-full border bg-[#F8FAFC] px-4 py-2 sm:py-2.5 transition-all shadow-2xs ${
+            isListening
+              ? "border-emerald-500 ring-2 ring-emerald-100 bg-white"
+              : "border-[#E2E8F0] focus-within:border-[#1769D2] focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-100"
+          }`}
+        >
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={
+              isListening ? "Listening to your voice..." : "Type your question..."
+            }
+            disabled={isLoading || isListening}
+            aria-label="Type your question"
+            className="w-full min-w-0 bg-transparent text-xs sm:text-sm font-medium text-[#142D50] placeholder-slate-400 outline-none disabled:opacity-50"
+          />
 
-        {/* Right Action Cluster */}
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Quick Topics Launcher */}
-          {onOpenShortcuts && (
+          {/* Clear text button */}
+          {message && !isLoading && (
             <button
               type="button"
-              onClick={onOpenShortcuts}
-              title="Browse University Topics"
-              aria-label="Browse University Topics"
-              className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full text-slate-500 hover:bg-sky-50 hover:text-blue-600 transition shrink-0"
+              onClick={() => setMessage("")}
+              title="Clear input"
+              aria-label="Clear input"
+              className="ml-1 flex h-6 w-6 items-center justify-center rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition"
             >
-              <Sparkles className="h-4.5 w-4.5" />
+              <X className="h-3.5 w-3.5" />
             </button>
           )}
-
-          {/* Oversized Tactile Microphone Button with Gradient Ring */}
-          <button
-            type="button"
-            onClick={onToggleVoice}
-            disabled={isLoading}
-            title={isListening ? "Stop listening" : "Tap to Speak"}
-            aria-label={isListening ? "Stop listening" : "Tap to Speak"}
-            className={`group relative flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full transition-all active:scale-95 shrink-0 shadow-md ${
-              isListening
-                ? "bg-gradient-to-tr from-rose-500 to-emerald-500 text-white animate-pulse ring-4 ring-emerald-200 shadow-emerald-500/30"
-                : "bg-gradient-to-tr from-blue-600 via-indigo-600 to-sky-500 text-white shadow-blue-500/30 hover:scale-105"
-            }`}
-          >
-            {isListening ? (
-              <MicOff className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-            ) : (
-              <Mic className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-            )}
-          </button>
-
-          {/* Send Icon Button */}
-          <button
-            type="submit"
-            disabled={!message.trim() || isLoading}
-            title="Send Question"
-            aria-label="Send Question"
-            className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full text-blue-600 hover:bg-sky-50 hover:text-blue-800 transition disabled:opacity-30 disabled:hover:bg-transparent shrink-0"
-          >
-            <Send className="h-4.5 w-4.5" />
-          </button>
         </div>
+
+        {/* 3. Right Circular Blue Send Button */}
+        <button
+          type="submit"
+          disabled={!message.trim() || isLoading}
+          title="Send Question"
+          aria-label="Send Question"
+          className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full bg-[#1769D2] text-white hover:bg-blue-700 disabled:opacity-40 disabled:hover:bg-[#1769D2] transition-all active:scale-95 shrink-0 shadow-xs"
+        >
+          <Send className="h-4 w-4 sm:h-4.5 sm:w-4.5" />
+        </button>
       </form>
     </div>
   );

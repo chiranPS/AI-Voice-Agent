@@ -31,3 +31,9 @@ class DocumentUploadResponse(BaseModel):
 
     message: str
     document: DocumentResponse
+
+
+class DocumentUpdateRequest(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    category: str | None = None

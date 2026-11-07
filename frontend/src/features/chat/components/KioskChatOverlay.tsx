@@ -1,22 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import {
-  User,
-  AlertCircle,
-  BookOpen,
-  Volume2,
-  Copy,
-  Check,
+  ArrowDown,
   RotateCcw,
-  GraduationCap,
-  Clock,
-  HelpCircle,
-  Building,
-  Globe,
-  Home,
-  ArrowRight,
+  FileText,
+  X,
+  Sparkles,
 } from "lucide-react";
 import type { ChatMessage as ChatMessageType } from "../types/chat.types";
 import type { AvatarType } from "../../avatar/types/avatar.types";
+import KioskChatMessage from "./KioskChatMessage";
+import KioskInputBar from "./KioskInputBar";
+import AssistantAvatarBadge from "./AssistantAvatarBadge";
 
 interface KioskChatOverlayProps {
   messages: ChatMessageType[];
@@ -26,77 +20,40 @@ interface KioskChatOverlayProps {
   onSelectSuggestion?: (question: string) => void;
   onReplayMessage?: (text: string) => void;
   onClearConversation?: () => void;
+  onSendMessage: (message: string) => void;
+  onToggleVoice: () => void;
+  isListening: boolean;
+  speechError?: string | null;
 }
 
-const KIOSK_DIRECTORY_PRESETS = [
-  {
-    category: "Admissions",
-    tag: "Programs & Requirements",
-    icon: GraduationCap,
-    question: "How do I apply for undergraduate admission?",
-  },
-  {
-    category: "Library & Study",
-    tag: "Hours & Locations",
-    icon: Clock,
-    question: "What are the university library opening hours?",
-  },
-  {
-    category: "Scholarships",
-    tag: "Funding & Grants",
-    icon: HelpCircle,
-    question: "What scholarships and financial aids are available?",
-  },
-  {
-    category: "Student Services",
-    tag: "Campus Desks",
-    icon: Building,
-    question: "Where is the student services desk located?",
-  },
-  {
-    category: "International",
-    tag: "Global Support",
-    icon: Globe,
-    question: "Who can I contact for international student queries?",
-  },
-  {
-    category: "Housing",
-    tag: "Student Residence",
-    icon: Home,
-    question: "Where can I find information on student accommodation?",
-  },
+const QUICK_STARTER_PROMPTS = [
+  "How do I apply for undergraduate admissions?",
+  "What are the university library opening hours?",
+  "Where is the student services desk located?",
 ];
 
+/**
+ * Dedicated Interactive Conversation Pane
+ * Integrated seamlessly into the right side of the combined kiosk workspace:
+ * - Scrollable message thread with initial greeting
+ * - Policy citation modal integration
+ * - Fixed bottom touchscreen input bar [ 🎤 | Type your question... | ➤ ]
+ */
 export const KioskChatOverlay = ({
   messages,
   isLoading,
   selectedAvatar,
   interimTranscript,
-  onSelectSuggestion,
   onReplayMessage,
   onClearConversation,
+  onSendMessage,
+  onToggleVoice,
+  isListening,
+  speechError,
 }: KioskChatOverlayProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  // Auto-scroll to latest message
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({
-        top: scrollRef.current.scrollHeight,
-        behavior: "smooth",
-      });
-    }
-  }, [messages, isLoading, interimTranscript]);
-
-  const handleCopy = (id: string, text: string) => {
-    if (navigator?.clipboard) {
-      navigator.clipboard.writeText(text).then(() => {
-        setCopiedId(id);
-        setTimeout(() => setCopiedId(null), 2000);
-      });
-    }
-  };
+  const [userHasScrolledUp, setUserHasScrolledUp] = useState(false);
+  const [activeSourceModal, setActiveSourceModal] = useState<any | null>(null);
 
   const assistantName = selectedAvatar === "male" ? "Alex" : "Sophia";
   const assistantRole =
@@ -104,13 +61,56 @@ export const KioskChatOverlay = ({
       ? "Lead Academic Advisor"
       : "Senior Campus Concierge";
 
+  // Check scroll position to determine whether user intentionally scrolled up
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 60;
+    setUserHasScrolledUp(!isAtBottom);
+  };
+
+  // Scroll to bottom
+  const scrollToBottom = (smooth = true) => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: smooth ? "smooth" : "auto",
+      });
+      setUserHasScrolledUp(false);
+    }
+  };
+
+  // Auto-scroll on new messages or loading states
+  useEffect(() => {
+    if (!userHasScrolledUp) {
+      scrollToBottom();
+    }
+  }, [messages, isLoading, interimTranscript, userHasScrolledUp]);
+
+  // Group consecutive messages by sender
+  const messageGroups = useMemo(() => {
+    return messages.map((msg, index) => {
+      const prevMsg = messages[index - 1];
+      const nextMsg = messages[index + 1];
+
+      const isFirstInGroup = !prevMsg || prevMsg.role !== msg.role;
+      const isLastInGroup = !nextMsg || nextMsg.role !== msg.role;
+
+      return {
+        message: msg,
+        isFirstInGroup,
+        isLastInGroup,
+      };
+    });
+  }, [messages]);
+
   return (
-    <div className="relative flex flex-col w-full h-full min-h-0 bg-transparent overflow-hidden">
-      {/* Optional Conversation Controls Bar when messages exist */}
+    <div className="relative flex flex-col h-full w-full min-h-0 bg-transparent p-4 sm:p-5 md:p-6 overflow-hidden justify-between">
+      {/* ── Active Conversation Top Bar (If turns > 0) ── */}
       {messages.length > 0 && (
-        <div className="flex items-center justify-between px-3 sm:px-4 py-2 border-b border-sky-100 bg-sky-50/40 shrink-0 rounded-2xl mb-2">
-          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-            {messages.length} {messages.length === 1 ? "Turn" : "Turns"} in Session
+        <div className="flex items-center justify-between pb-2.5 border-b border-[#E2E8F0] shrink-0 mb-1">
+          <span className="text-[10px] sm:text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
+            {messages.length} {messages.length === 1 ? "Message" : "Messages"} in Session
           </span>
 
           {onClearConversation && (
@@ -118,210 +118,179 @@ export const KioskChatOverlay = ({
               type="button"
               onClick={onClearConversation}
               title="Clear Session History"
-              className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600 hover:text-blue-700 transition px-2.5 py-1 rounded-lg hover:bg-blue-100/60"
+              className="flex items-center gap-1 text-[11px] font-bold text-[#64748B] hover:text-[#1769D2] transition px-2 py-0.5 rounded-lg hover:bg-slate-50 active:scale-95"
             >
               <RotateCcw className="h-3 w-3" />
-              <span>Clear History</span>
+              <span>Clear</span>
             </button>
           )}
         </div>
       )}
 
-      {/* Scrollable Messages Area */}
+      {/* ── Scrollable Messages Area ── */}
       <div
         ref={scrollRef}
-        className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6 scrollbar-thin scrollbar-thumb-sky-200 scrollbar-track-transparent"
+        onScroll={handleScroll}
+        className="flex-1 space-y-3 overflow-y-auto pr-1 py-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent min-h-0"
       >
         {messages.length === 0 ? (
-          /* Empty / Interactive Kiosk Directory Attractor */
-          <div className="flex flex-col items-center justify-center py-4 sm:py-6 text-center my-auto">
-            {/* Holographic Icon Badge */}
-            <div className="relative mb-3 flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-sky-500 text-white shadow-md shadow-blue-500/25 ring-4 ring-sky-100">
-              <GraduationCap className="h-7 w-7" />
-            </div>
-
-            <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
-              Welcome! I am {assistantName}
-            </h3>
-            <p className="mt-1 text-xs text-blue-600 font-bold uppercase tracking-wider">
-              {assistantRole} • Northstar University
-            </p>
-            <p className="mt-1 text-xs sm:text-sm text-slate-500 max-w-sm sm:max-w-md leading-relaxed">
-              Tap any popular campus service below or speak directly into the kiosk microphone.
-            </p>
-
-            {/* Interactive Touch Directory Cards Grid */}
-            {onSelectSuggestion && (
-              <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-w-xl w-full">
-                {KIOSK_DIRECTORY_PRESETS.map((item, idx) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => onSelectSuggestion(item.question)}
-                      className="group relative flex items-center justify-between rounded-2xl border border-sky-100 bg-white p-3 text-left hover:border-blue-400 hover:shadow-md hover:shadow-blue-500/10 transition-all active:scale-98"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 border border-sky-100 text-blue-600 group-hover:bg-gradient-to-tr group-hover:from-blue-600 group-hover:to-sky-500 group-hover:text-white transition-all shadow-2xs">
-                          <Icon className="h-4.5 w-4.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="block text-[10px] font-bold uppercase tracking-wider text-blue-600">
-                            {item.category}
-                          </span>
-                          <span className="block text-xs font-semibold text-slate-800 truncate group-hover:text-blue-900">
-                            {item.question}
-                          </span>
-                        </div>
-                      </div>
-
-                      <ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
-                    </button>
-                  );
-                })}
+          /* ── Default Initial Assistant Greeting (as shown in visual reference) ── */
+          <div className="flex flex-col space-y-3 pt-1">
+            <div className="flex w-full items-start gap-2.5 sm:gap-3 justify-start">
+              <div className="w-9 sm:w-10 shrink-0 flex justify-center pt-0.5">
+                <AssistantAvatarBadge gender={selectedAvatar} size="md" />
               </div>
-            )}
-          </div>
-        ) : (
-          /* Rendered Conversation Messages */
-          messages.map((message) => {
-            const isUser = message.role === "user";
-            const formattedTime = new Date(message.created_at).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            });
 
-            return (
-              <div
-                key={message.id}
-                className={`flex w-full items-start gap-2.5 sm:gap-3.5 ${
-                  isUser ? "justify-end" : "justify-start"
-                }`}
-              >
-                {/* Assistant Avatar Badge on Left */}
-                {!isUser && (
-                  <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl border border-sky-200 bg-gradient-to-tr from-blue-600 to-sky-500 text-white shadow-xs font-bold text-sm">
-                    {assistantName[0]}
-                  </div>
-                )}
-
-                {/* Message Bubble Column */}
-                <div
-                  className={`flex max-w-[85%] sm:max-w-[80%] flex-col ${
-                    isUser ? "items-end" : "items-start"
-                  }`}
-                >
-                  <div
-                    className={`group relative rounded-2xl p-4 text-xs sm:text-sm leading-relaxed ${
-                      isUser
-                        ? "rounded-tr-xs bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-600 text-white shadow-sm font-medium"
-                        : "rounded-tl-xs bg-white text-slate-800 border border-sky-200/80 shadow-xs"
-                    }`}
-                  >
-                    {!isUser && (
-                      <div className="mb-1 flex items-center justify-between border-b border-slate-100 pb-1.5 text-[10px] font-bold text-blue-600 uppercase tracking-wider">
-                        <span>{assistantName} • {assistantRole}</span>
-                        <span className="text-slate-400 font-normal">{formattedTime}</span>
-                      </div>
-                    )}
-
-                    <p className="whitespace-pre-wrap">{message.content}</p>
-
-                    {/* Grounded FAQ Sources tag if present */}
-                    {!isUser && message.sources && message.sources.length > 0 && (
-                      <div className="mt-3 pt-2 border-t border-sky-100 text-[11px] text-blue-900 font-semibold flex items-center gap-1.5 bg-sky-50/60 p-2 rounded-lg">
-                        <BookOpen className="h-3.5 w-3.5 shrink-0 text-blue-600" />
-                        <span className="truncate">Source: {message.sources[0].question}</span>
-                      </div>
-                    )}
-
-                    {/* Grounding Fallback alert */}
-                    {!isUser && message.fallback && (
-                      <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-amber-800 font-medium bg-amber-50 p-2 rounded-lg border border-amber-200">
-                        <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
-                        <span>Please contact the university information desk for unverified inquiries.</span>
-                      </div>
-                    )}
-
-                    {/* Assistant Quick Actions: Audio Replay & Copy */}
-                    {!isUser && (
-                      <div className="mt-2.5 pt-1.5 flex items-center justify-end gap-2 border-t border-slate-100">
-                        {onReplayMessage && (
-                          <button
-                            type="button"
-                            onClick={() => onReplayMessage(message.content)}
-                            title="Re-play spoken voice response"
-                            className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-blue-600 px-2 py-1 rounded-md hover:bg-sky-50 transition"
-                          >
-                            <Volume2 className="h-3.5 w-3.5" />
-                            <span>Listen Again</span>
-                          </button>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(message.id, message.content)}
-                          title="Copy response to clipboard"
-                          className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-blue-600 px-2 py-1 rounded-md hover:bg-sky-50 transition"
-                        >
-                          {copiedId === message.id ? (
-                            <>
-                              <Check className="h-3.5 w-3.5 text-emerald-600" />
-                              <span className="text-emerald-600">Copied!</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="h-3.5 w-3.5" />
-                              <span>Copy</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* User Timestamp */}
-                  {isUser && (
-                    <span className="mt-1 px-1 text-[10px] sm:text-[11px] font-medium text-slate-400">
-                      {formattedTime}
-                    </span>
-                  )}
+              <div className="flex max-w-[88%] sm:max-w-[82%] flex-col items-start">
+                <div className="relative rounded-2xl rounded-tl-xs p-3.5 sm:p-4 text-xs sm:text-sm lg:text-base leading-relaxed bg-[#F1F5F9] text-[#142D50] border border-[#E2E8F0]/80 shadow-2xs">
+                  <p className="font-medium">
+                    Hello! 👋<br />
+                    I'm your Northstar University AI Assistant. How can I help you today?
+                  </p>
                 </div>
 
-                {/* User Avatar Badge on Right */}
-                {isUser && (
-                  <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 text-blue-700 shadow-xs">
-                    <User className="h-4 w-4" />
-                  </div>
-                )}
+                <div className="flex items-center gap-1 px-1 mt-1 text-[10px] sm:text-xs font-medium text-slate-500 justify-start">
+                  <span>10:24 AM</span>
+                  <span className="text-[#1769D2] font-bold">✓✓</span>
+                </div>
               </div>
-            );
-          })
+            </div>
+
+            {/* Quick interactive touch prompts for zero-state friendliness */}
+            <div className="mt-3 pl-11 sm:pl-13 space-y-1.5">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#64748B] flex items-center gap-1">
+                <Sparkles className="h-3 w-3 text-[#1769D2]" />
+                <span>Suggested questions:</span>
+              </span>
+              <div className="flex flex-col gap-1.5">
+                {QUICK_STARTER_PROMPTS.map((prompt, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => onSendMessage(prompt)}
+                    className="text-left text-xs font-semibold text-[#1769D2] hover:text-[#0D47A1] bg-blue-50/70 hover:bg-blue-100/70 border border-blue-100 px-3 py-1.5 rounded-xl transition-all active:scale-[0.99] truncate"
+                  >
+                    "{prompt}"
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* ── Active Conversation Thread ── */
+          messageGroups.map(({ message, isFirstInGroup, isLastInGroup }) => (
+            <KioskChatMessage
+              key={message.id}
+              message={message}
+              assistantName={assistantName}
+              assistantRole={assistantRole}
+              selectedAvatar={selectedAvatar}
+              isFirstInGroup={isFirstInGroup}
+              isLastInGroup={isLastInGroup}
+              onReplay={onReplayMessage}
+              onOpenSource={(src) => setActiveSourceModal(src)}
+            />
+          ))
         )}
 
-        {/* Real-time live speech transcript preview */}
+        {/* Real-time speech preview bubble while user speaks */}
         {interimTranscript && (
-          <div className="flex w-full items-start justify-end gap-2.5">
+          <div className="flex w-full items-start justify-end gap-2.5 mt-2">
             <div className="flex max-w-[80%] flex-col items-end">
-              <div className="rounded-2xl rounded-tr-xs border border-sky-300 bg-sky-50/90 px-4 py-2.5 text-xs italic text-blue-900 shadow-2xs">
+              <div className="rounded-2xl rounded-tr-xs border border-blue-200 bg-blue-50/90 px-3.5 py-2 text-xs sm:text-sm italic text-[#142D50] shadow-2xs animate-pulse">
                 "{interimTranscript}..."
               </div>
             </div>
           </div>
         )}
 
-        {/* Thinking Indicator */}
+        {/* Processing State Indicator */}
         {isLoading && (
-          <div className="flex items-center gap-2.5 text-xs font-bold text-blue-700 px-2 py-1">
+          <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-[#1769D2] px-3.5 py-2 bg-blue-50/70 rounded-xl border border-blue-100 max-w-xs animate-pulse">
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-600" />
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#1769D2]" />
             </span>
-            <span>{assistantName} is consulting university records...</span>
+            <span>{assistantName} is searching campus records...</span>
           </div>
         )}
       </div>
+
+      {/* Floating "Scroll to Bottom" button */}
+      {userHasScrolledUp && (
+        <button
+          type="button"
+          onClick={() => scrollToBottom(true)}
+          className="absolute bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-white px-3.5 py-1 text-xs font-bold text-[#142D50] shadow-md hover:bg-slate-50 transition active:scale-95 z-20"
+        >
+          <ArrowDown className="h-3 w-3 text-[#1769D2]" />
+          <span>Latest message</span>
+        </button>
+      )}
+
+      {/* ── Fixed Bottom Integrated Input Bar ── */}
+      <div className="shrink-0 w-full pt-2.5 border-t border-[#E2E8F0]/80">
+        <KioskInputBar
+          onSendMessage={onSendMessage}
+          onToggleVoice={onToggleVoice}
+          isListening={isListening}
+          isLoading={isLoading}
+          speechError={speechError}
+        />
+      </div>
+
+      {/* ── Full Policy Detail Modal ── */}
+      {activeSourceModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="relative flex flex-col max-h-[90%] w-full max-w-lg rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-2.5 border-b border-[#E2E8F0]">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-[#1769D2]">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#64748B]">
+                    University Official Policy
+                  </h4>
+                  <p className="text-sm font-bold text-[#142D50] truncate">
+                    {activeSourceModal.question || "Policy Citation"}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setActiveSourceModal(null)}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto py-3 text-xs sm:text-sm text-[#142D50] leading-relaxed space-y-2">
+              <p className="font-semibold text-[#1769D2]">
+                Category: {activeSourceModal.category || "Official University Guidelines"}
+              </p>
+              <div className="rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] p-3 text-xs leading-relaxed whitespace-pre-wrap">
+                {activeSourceModal.answer || activeSourceModal.content || "Full policy text is grounded in the Northstar University knowledge base."}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="pt-2.5 border-t border-[#E2E8F0] flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveSourceModal(null)}
+                className="rounded-xl bg-[#1769D2] px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

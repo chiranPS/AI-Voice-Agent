@@ -1,184 +1,325 @@
+import { useState, useEffect, useRef } from "react";
 import {
-  Sparkles,
-  Menu,
+  GraduationCap,
+  Globe,
+  Check,
+  ChevronDown,
+  Accessibility,
   Maximize2,
   Minimize2,
-  RotateCcw,
-  Volume2,
-  VolumeX,
-  GraduationCap,
-  Clock,
+  Type,
+  Eye,
 } from "lucide-react";
-import { useState, useEffect } from "react";
 
 interface KioskHeaderProps {
-  onResetSession: () => void;
+  onResetSession?: () => void;
   onToggleShortcuts?: () => void;
-  isOnline?: boolean;
   voiceEnabled?: boolean;
   onToggleVoice?: () => void;
 }
 
+interface LanguageOption {
+  code: string;
+  name: string;
+  nativeName: string;
+}
+
+const SUPPORTED_LANGUAGES: LanguageOption[] = [
+  { code: "en", name: "English", nativeName: "EN" },
+  { code: "si", name: "Sinhala", nativeName: "සිං" },
+  { code: "ta", name: "Tamil", nativeName: "தமி" },
+];
+
 /**
- * Modern University UI Kiosk Header
- * Features high-impact official branding, live campus clock,
- * online readiness indicator, and touchscreen-optimized utility controls.
+ * Northstar University Kiosk Header
+ * Matching the portrait reference design:
+ * [🎓] NORTHSTAR UNIVERSITY             [ 🌐 EN ▾ | ♿ | ⛶ ]
+ *      VIRTUAL INFORMATION KIOSK
  */
-export const KioskHeader = ({
-  onResetSession,
-  onToggleShortcuts,
-  isOnline = true,
-  voiceEnabled = true,
-  onToggleVoice,
-}: KioskHeaderProps) => {
+export const KioskHeader = ({}: KioskHeaderProps) => {
+  // Screen and Popover States
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [currentTime, setCurrentTime] = useState("");
+  const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
+  const [isAccessMenuOpen, setIsAccessMenuOpen] = useState(false);
 
-  // Live campus kiosk clock
+  // Language & Accessibility State
+  const [selectedLanguage, setSelectedLanguage] = useState<LanguageOption>(
+    SUPPORTED_LANGUAGES[0]
+  );
+  const [isLargeText, setIsLargeText] = useState(false);
+  const [isHighContrast, setIsHighContrast] = useState(false);
+  const [languageNotice, setLanguageNotice] = useState<string | null>(null);
+
+  // Refs for outside-click dismissal
+  const langMenuRef = useRef<HTMLDivElement>(null);
+  const accessMenuRef = useRef<HTMLDivElement>(null);
+
+  // Fullscreen sync
   useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setCurrentTime(
-        now.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      );
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
     };
-
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () =>
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
+  // Handle outside clicks to close dropdown menus
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (langMenuRef.current && !langMenuRef.current.contains(target)) {
+        setIsLangMenuOpen(false);
+      }
+      if (accessMenuRef.current && !accessMenuRef.current.contains(target)) {
+        setIsAccessMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("touchstart", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("touchstart", handleOutsideClick);
+    };
+  }, []);
+
+  // Escape key listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsLangMenuOpen(false);
+        setIsAccessMenuOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Toggle Fullscreen Kiosk
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => {});
-      setIsFullscreen(true);
     } else {
       if (document.exitFullscreen) {
         document.exitFullscreen().catch(() => {});
-        setIsFullscreen(false);
       }
     }
   };
 
+  // Language Selection
+  const handleSelectLanguage = (lang: LanguageOption) => {
+    setSelectedLanguage(lang);
+    setIsLangMenuOpen(false);
+
+    if (lang.code !== "en") {
+      setLanguageNotice(
+        `${lang.name} voice interaction is coming soon. English speech is active.`
+      );
+      setTimeout(() => setLanguageNotice(null), 4500);
+    } else {
+      setLanguageNotice(null);
+    }
+  };
+
+  // Toggle Accessibility Text Size
+  const toggleTextSize = () => {
+    const nextState = !isLargeText;
+    setIsLargeText(nextState);
+    if (nextState) {
+      document.documentElement.style.fontSize = "17px";
+    } else {
+      document.documentElement.style.fontSize = "";
+    }
+  };
+
+  // Toggle High Contrast Mode
+  const toggleHighContrast = () => {
+    const nextState = !isHighContrast;
+    setIsHighContrast(nextState);
+    if (nextState) {
+      document.documentElement.classList.add("kiosk-high-contrast");
+    } else {
+      document.documentElement.classList.remove("kiosk-high-contrast");
+    }
+  };
+
   return (
-    <header className="relative z-30 flex items-center justify-between rounded-2xl sm:rounded-3xl bg-white/95 backdrop-blur-md border border-sky-100 shadow-md shadow-blue-900/5 px-3.5 sm:px-6 py-2.5 sm:py-3 mb-2 sm:mb-3 shrink-0 w-full overflow-hidden">
-      {/* Brand & Assistant Version - Prominently Highlighted */}
-      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-        {/* Modern Vibrant Gradient Icon Badge */}
-        <div className="relative flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 via-sky-600 to-cyan-400 text-white shadow-md shadow-blue-500/25 ring-2 ring-sky-100">
-          <GraduationCap className="h-6 w-6" />
-          <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-300 text-slate-900 shadow-xs">
-            <Sparkles className="h-2.5 w-2.5" />
-          </div>
+    <header className="relative z-30 flex items-center justify-between rounded-2xl sm:rounded-3xl border border-[#E2E8F0] bg-white/95 px-4 sm:px-6 py-2.5 sm:py-3 shadow-xs backdrop-blur-md shrink-0 w-full transition-colors">
+      {/* ── Left: Institutional University Identity ── */}
+      <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
+        {/* Blue Graduation Cap Badge */}
+        <div className="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-[#1769D2] text-white shadow-xs">
+          <GraduationCap className="h-5 w-5 sm:h-6 sm:w-6" />
         </div>
 
-        <div className="min-w-0 flex flex-col justify-center">
-          {/* Micro Tag */}
-          <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-blue-600 leading-none">
-            <span className="flex h-1.5 w-1.5 rounded-full bg-blue-600" />
-            <span>Northstar University • Virtual Information Kiosk</span>
-          </div>
-
-          {/* Main Prominent Title */}
-          <div className="flex items-center gap-2 mt-1">
-            <h1 className="text-sm xs:text-base sm:text-lg lg:text-xl font-black tracking-tight text-slate-900 leading-tight truncate">
-              North Star University <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-sky-500 bg-clip-text text-transparent">AI Assistant</span>
-            </h1>
-            <span className="hidden sm:inline-flex items-center text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-gradient-to-r from-blue-50 to-sky-50 text-blue-700 border border-blue-200 shadow-2xs">
-              V2 Kiosk
-            </span>
-          </div>
+        {/* University Name & Subtitle */}
+        <div className="flex flex-col justify-center min-w-0">
+          <h1 className="text-xs xs:text-sm sm:text-base font-extrabold uppercase tracking-tight text-[#142D50] leading-tight truncate">
+            Northstar University
+          </h1>
+          <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#64748B] mt-0.5 leading-none">
+            Virtual Information Kiosk
+          </p>
         </div>
       </div>
 
-      {/* Right Controls: Live Time, Online Status & Utility Cluster */}
-      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-        {/* Live Kiosk Clock (Desktop & Tablet) */}
-        {currentTime && (
-          <div className="hidden md:flex items-center gap-1.5 rounded-xl border border-sky-100 bg-sky-50/50 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs">
-            <Clock className="h-3.5 w-3.5 text-blue-600" />
-            <span>{currentTime}</span>
-          </div>
-        )}
-
-        {/* Crisp Online Status Badge with Pulse */}
-        <div
-          className={`flex items-center gap-1.5 sm:gap-2 rounded-full border px-3 py-1 sm:py-1.5 shadow-2xs ${
-            isOnline
-              ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-              : "border-slate-300 bg-slate-100 text-slate-700"
-          }`}
-        >
-          <span className="relative flex h-2 w-2">
-            {isOnline && (
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-            )}
-            <span
-              className={`relative inline-flex h-2 w-2 rounded-full ${
-                isOnline ? "bg-emerald-600" : "bg-slate-400"
-              }`}
-            />
-          </span>
-          <span className="text-[11px] sm:text-xs font-bold tracking-wide">
-            {isOnline ? "System Ready" : "Offline"}
-          </span>
-        </div>
-
-        {/* Audio Mute / Unmute Toggle */}
-        {onToggleVoice && (
+      {/* ── Right: Integrated Pill Container [ 🌐 EN ▾ | ♿ | ⛶ ] ── */}
+      <div className="inline-flex items-center rounded-full border border-[#E2E8F0] bg-[#F8FAFC] px-1.5 py-1 gap-1 shadow-2xs shrink-0">
+        {/* 1. Language Selector Button & Dropdown */}
+        <div className="relative" ref={langMenuRef}>
           <button
             type="button"
-            onClick={onToggleVoice}
-            title={voiceEnabled ? "Mute Spoken Voice" : "Enable Spoken Voice"}
-            aria-label={voiceEnabled ? "Mute voice" : "Enable voice"}
-            className={`flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border shadow-2xs transition active:scale-95 ${
-              voiceEnabled
-                ? "border-sky-200 bg-white text-slate-700 hover:border-sky-300 hover:bg-sky-50 hover:text-blue-600"
-                : "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+            onClick={() => {
+              setIsLangMenuOpen(!isLangMenuOpen);
+              setIsAccessMenuOpen(false);
+            }}
+            aria-expanded={isLangMenuOpen}
+            aria-label="Select language"
+            className="flex items-center gap-1 sm:gap-1.5 rounded-full px-2.5 sm:px-3 py-1 text-xs font-bold text-[#142D50] hover:bg-white hover:text-[#1769D2] transition active:scale-95"
+          >
+            <Globe className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#1769D2]" />
+            <span>{selectedLanguage.nativeName}</span>
+            <ChevronDown
+              className={`h-3 w-3 text-[#64748B] transition-transform duration-200 ${
+                isLangMenuOpen ? "rotate-180" : ""
+              }`}
+            />
+          </button>
+
+          {/* Language Popover */}
+          {isLangMenuOpen && (
+            <div className="absolute right-0 top-10 z-50 w-40 rounded-2xl border border-[#E2E8F0] bg-white p-1.5 shadow-lg shadow-slate-900/10 animate-in fade-in zoom-in-95 duration-100">
+              <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#64748B] border-b border-[#E2E8F0]/70 mb-1">
+                Language
+              </div>
+              {SUPPORTED_LANGUAGES.map((lang) => {
+                const isSelected = selectedLanguage.code === lang.code;
+                return (
+                  <button
+                    key={lang.code}
+                    type="button"
+                    onClick={() => handleSelectLanguage(lang)}
+                    className={`flex w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-xs font-semibold transition ${
+                      isSelected
+                        ? "bg-blue-50 text-[#1769D2]"
+                        : "text-[#142D50] hover:bg-[#F8FAFC]"
+                    }`}
+                  >
+                    <span>{lang.name}</span>
+                    {isSelected && <Check className="h-3.5 w-3.5 text-[#1769D2]" />}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Thin Divider */}
+        <span className="h-4 w-px bg-slate-300" aria-hidden="true" />
+
+        {/* 2. Accessibility Button & Popover */}
+        <div className="relative" ref={accessMenuRef}>
+          <button
+            type="button"
+            onClick={() => {
+              setIsAccessMenuOpen(!isAccessMenuOpen);
+              setIsLangMenuOpen(false);
+            }}
+            aria-expanded={isAccessMenuOpen}
+            aria-label="Accessibility settings"
+            title="Accessibility Settings"
+            className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full transition active:scale-95 ${
+              isLargeText || isHighContrast
+                ? "bg-blue-50 text-[#1769D2]"
+                : "text-[#142D50] hover:bg-white hover:text-[#1769D2]"
             }`}
           >
-            {voiceEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            <Accessibility className="h-4 w-4" />
           </button>
-        )}
 
-        {/* Reset / New Session Button */}
-        <button
-          type="button"
-          onClick={onResetSession}
-          title="Start Fresh Conversation"
-          aria-label="Start Fresh Conversation"
-          className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border border-sky-200 bg-white text-slate-700 shadow-2xs transition hover:border-sky-300 hover:bg-sky-50 hover:text-blue-600 active:scale-95"
-        >
-          <RotateCcw className="h-4 w-4" />
-        </button>
+          {/* Accessibility Popover */}
+          {isAccessMenuOpen && (
+            <div className="absolute right-0 top-10 z-50 w-60 rounded-2xl border border-[#E2E8F0] bg-white p-3 shadow-lg shadow-slate-900/10 animate-in fade-in zoom-in-95 duration-100">
+              <div className="flex items-center justify-between pb-2 border-b border-[#E2E8F0]/70 mb-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#142D50]">
+                  Accessibility
+                </span>
+                <span className="text-[10px] text-[#64748B]">Display Options</span>
+              </div>
 
-        {/* Fullscreen Kiosk Toggle */}
+              <div className="space-y-2">
+                {/* Font Scaling */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Type className="h-3.5 w-3.5 text-[#64748B]" />
+                    <span className="text-xs font-semibold text-[#142D50]">
+                      Large Text
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={toggleTextSize}
+                    className={`h-6 px-2.5 rounded-lg text-xs font-bold border transition ${
+                      isLargeText
+                        ? "bg-[#1769D2] text-white border-[#1769D2]"
+                        : "bg-[#F8FAFC] text-[#64748B] border-[#E2E8F0]"
+                    }`}
+                  >
+                    {isLargeText ? "Large" : "Default"}
+                  </button>
+                </div>
+
+                {/* High Contrast Mode */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Eye className="h-3.5 w-3.5 text-[#64748B]" />
+                    <span className="text-xs font-semibold text-[#142D50]">
+                      Contrast
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={toggleHighContrast}
+                    className={`h-6 px-2.5 rounded-lg text-xs font-bold border transition ${
+                      isHighContrast
+                        ? "bg-[#142D50] text-white border-[#142D50]"
+                        : "bg-[#F8FAFC] text-[#64748B] border-[#E2E8F0]"
+                    }`}
+                  >
+                    {isHighContrast ? "High" : "Standard"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Thin Divider */}
+        <span className="h-4 w-px bg-slate-300" aria-hidden="true" />
+
+        {/* 3. Fullscreen Kiosk Mode Toggle */}
         <button
           type="button"
           onClick={toggleFullscreen}
-          title={isFullscreen ? "Exit Fullscreen Kiosk" : "Enter Fullscreen Kiosk"}
-          aria-label={isFullscreen ? "Exit Fullscreen Kiosk" : "Enter Fullscreen Kiosk"}
-          className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border border-sky-200 bg-white text-slate-700 shadow-2xs transition hover:border-sky-300 hover:bg-sky-50 hover:text-blue-600 active:scale-95"
+          title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full text-[#142D50] hover:bg-white hover:text-[#1769D2] transition active:scale-95"
         >
-          {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          {isFullscreen ? (
+            <Minimize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+          ) : (
+            <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+          )}
         </button>
-
-        {/* Menu / FAQ Shortcuts Drawer Button */}
-        {onToggleShortcuts && (
-          <button
-            type="button"
-            onClick={onToggleShortcuts}
-            title="Browse Topics & Services"
-            aria-label="Browse Topics & Services"
-            className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl border border-sky-200 bg-white text-slate-700 shadow-2xs transition hover:border-sky-300 hover:bg-sky-50 hover:text-blue-600 active:scale-95"
-          >
-            <Menu className="h-4 w-4" />
-          </button>
-        )}
       </div>
+
+      {/* Floating Language Notice */}
+      {languageNotice && (
+        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 w-[90%] max-w-sm rounded-xl border border-blue-200 bg-blue-50/95 p-2 text-center text-xs font-medium text-blue-900 shadow-md">
+          {languageNotice}
+        </div>
+      )}
     </header>
   );
 };
