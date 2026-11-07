@@ -319,26 +319,38 @@ Create:
 `backend/.env`
 
 ```env
-# Application
-APP_NAME=Northstar University AI Kiosk
-DEBUG=True
+### Backend Environment Configuration
 
-# Database
-DATABASE_URL=postgresql://<DB_USER>:<DB_PASSWORD>@<DB_HOST>:5432/<DB_NAME>
+Create a `.env` file inside the `backend/` directory and configure the following variables:
 
-# Google Gemini
-GEMINI_API_KEY=<YOUR_GEMINI_API_KEY>
-GEMINI_MODEL=<YOUR_CONFIGURED_GEMINI_MODEL>
+```env
+# Gemini AI Configuration
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=
 
-# Speech-to-Text
-STT_API_KEY=<YOUR_STT_API_KEY>
+# Database Configuration
+DATABASE_URL=
 
-# Text-to-Speech
-TTS_API_KEY=<YOUR_TTS_API_KEY>
+# Embedding Configuration
+GEMINI_EMBEDDING_MODEL=gemini-embedding-2
+EMBEDDING_DIMENSIONS=768
 
-# CORS
-FRONTEND_URL=http://localhost:5173
-ADMIN_FRONTEND_URL=http://localhost:5174
+# RAG Configuration
+RAG_MIN_SIMILARITY=0.45
+
+# Admin Authentication
+JWT_SECRET_KEY=
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINIUTES=480
+
+# Initial Admin Account
+ADMIN_INITIAL_EMAIL=admin@northstar.example
+ADMIN_INITIAL_NAME=University Administrator
+ADMIN_INITIAL_PASSWORD=REPLACE_WITH_A_STRONG_PASSWORD
+
+# Document Storage
+DOCUMENT_STORAGE_PATH=storage/documents
+MAX_DOCUMENT_SIZE_MB=20
 ```
 
 ### Main Frontend Environment
