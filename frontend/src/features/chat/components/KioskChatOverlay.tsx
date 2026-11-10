@@ -204,14 +204,17 @@ export const KioskChatOverlay = ({
           </div>
         )}
 
-        {/* Processing State Indicator */}
+        {/* Natural Animated Typing Indicator (Universal for Greetings & Inquiries) */}
         {isLoading && (
-          <div className="flex items-center gap-2 text-xs sm:text-sm font-bold text-[#1769D2] px-3.5 py-2 bg-blue-50/70 rounded-xl border border-blue-100 max-w-xs animate-pulse">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#1769D2]" />
-            </span>
-            <span>{assistantName} is searching campus records...</span>
+          <div className="flex w-full items-start gap-2.5 sm:gap-3 justify-start animate-fade-in">
+            <div className="w-9 sm:w-10 shrink-0 flex justify-center pt-0.5">
+              <AssistantAvatarBadge gender={selectedAvatar} size="md" />
+            </div>
+            <div className="relative rounded-2xl rounded-tl-xs px-4 py-3 bg-[#F1F5F9] text-[#142D50] border border-[#E2E8F0]/80 shadow-2xs inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#1769D2]/70 animate-bounce [animation-delay:-0.3s]" />
+              <span className="h-2 w-2 rounded-full bg-[#1769D2]/70 animate-bounce [animation-delay:-0.15s]" />
+              <span className="h-2 w-2 rounded-full bg-[#1769D2]/70 animate-bounce" />
+            </div>
           </div>
         )}
       </div>
@@ -251,10 +254,10 @@ export const KioskChatOverlay = ({
                 </div>
                 <div className="min-w-0">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-[#64748B]">
-                    University Official Policy
+                    Institutional Knowledge Reference
                   </h4>
                   <p className="text-sm font-bold text-[#142D50] truncate">
-                    {activeSourceModal.question || "Policy Citation"}
+                    {activeSourceModal.document_title || activeSourceModal.question || "APIIT Document Citation"}
                   </p>
                 </div>
               </div>

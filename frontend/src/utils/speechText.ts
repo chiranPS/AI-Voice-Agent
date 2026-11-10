@@ -1,11 +1,11 @@
 /**
- * Northstar University Kiosk - Speech Text Preprocessing Utility
+ * APIIT Sri Lanka Kiosk - Speech Text Preprocessing & Phonetic Normalizer
  * 
  * Cleans assistant responses before sending to the browser Text-to-Speech (TTS) engine:
- * - Strips Markdown markers (bold, italics, headers, code, bullet/numbered lists, tables, links)
- * - Converts formatting and punctuation into natural spoken pauses
- * - Preserves numbers, dates, times, currency amounts, and university terminology
- * - Removes raw symbols and emoji glyphs so the voice doesn't read technical markup aloud
+ * - Phonetically normalizes institutional terms (APIIT, A/L, O/L, BSc, LKR)
+ * - Strips Markdown markers (bold, italics, headers, code, tables, links)
+ * - Inserts natural conversational pauses (commas, periods) for human-like cadence
+ * - Removes raw symbols, emojis, and slashes so the voice does not announce literal punctuation
  */
 export function prepareSpeechText(text: string): string {
   if (!text || typeof text !== "string") return "";
@@ -34,7 +34,7 @@ export function prepareSpeechText(text: string): string {
         .split("|")
         .map((cell: string) => cell.trim())
         .filter(Boolean)
-        .join(", ") + "."
+        .join(", ") + ". "
     );
   });
 
@@ -44,7 +44,7 @@ export function prepareSpeechText(text: string): string {
   // 8. Convert headings into punctuated spoken sentences
   cleaned = cleaned.replace(/^#{1,6}\s*(.+)$/gm, (_, h) => {
     const trimmed = h.trim();
-    return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+    return /[.!?]$/.test(trimmed) ? `${trimmed} ` : `${trimmed}. `;
   });
 
   // 9. Remove bold and italic markers (*, **, ***, _, __, ___)
@@ -58,37 +58,68 @@ export function prepareSpeechText(text: string): string {
   // 10. Remove strikethrough (~~text~~)
   cleaned = cleaned.replace(/~~(.*?)~~/g, "$1");
 
-  // 11. Remove bullet list markers and ensure natural pauses between items
+  // =========================================================================
+  // PHONETIC & INSTITUTIONAL NORMALIZATION (Crucial for Natural Sri Lankan Pronunciation)
+  // =========================================================================
+
+  // A. Institution Name: Pronounce "APIIT" as "App-it" (short, natural form)
+  cleaned = cleaned.replace(/\bAPIIT\b/g, "App-it");
+
+  // B. Examinations: Prevent "slash" from being spoken aloud
+  cleaned = cleaned.replace(/\bA\/Ls\b/gi, "A Levels");
+  cleaned = cleaned.replace(/\bA\/L\b/gi, "A Level");
+  cleaned = cleaned.replace(/\bO\/Ls\b/gi, "O Levels");
+  cleaned = cleaned.replace(/\bO\/L\b/gi, "O Level");
+
+  // C. Degree Designations: Natural expanded academic phrasing
+  cleaned = cleaned.replace(/\bBSc\s*\(\s*Hons\s*\)/gi, "B.S.C. Honours");
+  cleaned = cleaned.replace(/\bBEng\s*\(\s*Hons\s*\)/gi, "B.Eng. Honours");
+  cleaned = cleaned.replace(/\bBSc\b/gi, "B.S.C.");
+  cleaned = cleaned.replace(/\bBEng\b/gi, "B.Eng.");
+  cleaned = cleaned.replace(/\bMSc\b/gi, "M.S.C.");
+  cleaned = cleaned.replace(/\bMBA\b/gi, "M.B.A.");
+  cleaned = cleaned.replace(/\bPhD\b/gi, "P.H.D.");
+
+  // D. Geography & Currency
+  cleaned = cleaned.replace(/\bUK\b/g, "U.K.");
+  cleaned = cleaned.replace(/\bLKR\s*([\d,]+)/gi, "$1 Sri Lankan Rupees");
+  cleaned = cleaned.replace(/Rs\.?\s*([\d,]+)/gi, "$1 Rupees");
+
+  // =========================================================================
+  // CADENCE & NATURAL PAUSES
+  // =========================================================================
+
+  // 11. Remove bullet list markers and add a natural breath pause between items
   cleaned = cleaned.replace(/^\s*[-*+]\s+(.+)$/gm, (_, item) => {
     const trimmed = item.trim();
-    return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+    return /[.!?]$/.test(trimmed) ? `${trimmed} ` : `${trimmed}. `;
   });
 
-  // 12. Remove numbered list markers and ensure natural pauses between items
+  // 12. Remove numbered list markers and add pause
   cleaned = cleaned.replace(/^\s*\d+[.)]\s+(.+)$/gm, (_, item) => {
     const trimmed = item.trim();
-    return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+    return /[.!?]$/.test(trimmed) ? `${trimmed} ` : `${trimmed}. `;
   });
 
-  // 13. Replace colons with natural pauses, except inside times like 10:30 AM or 9:00
-  cleaned = cleaned.replace(/(?<!\d):|:(?!\d)/g, ".");
+  // 13. Replace colons with natural pauses, except inside times (e.g., 10:30 AM)
+  cleaned = cleaned.replace(/(?<!\d):|:(?!\d)/g, ", ");
 
-  // 14. Remove unnecessary special characters that TTS would otherwise read aloud
+  // 14. Remove remaining technical punctuation and symbols
   cleaned = cleaned.replace(/[*#_~`^<>{}|[\]\\]/g, " ");
 
-  // 15. Remove emojis and checkmark glyphs so TTS does not announce symbol names
+  // 15. Remove emojis and checkmark glyphs
   cleaned = cleaned.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}]/gu, "");
-  cleaned = cleaned.replace(/[✓✔✗✕]/g, "");
+  cleaned = cleaned.replace(/[✓✔✗✕•·]/g, "");
 
-  // 16. Normalize punctuation and whitespace:
+  // 16. Normalize punctuation and spacing
   cleaned = cleaned.replace(/\.{2,}/g, ".");
   cleaned = cleaned.replace(/,{2,}/g, ",");
   cleaned = cleaned.replace(/,\s*\./g, ".");
 
-  // Remove spaces before punctuation (e.g., "Registrar ." -> "Registrar.")
+  // Remove spaces before punctuation
   cleaned = cleaned.replace(/\s+([.,!?])/g, "$1");
 
-  // Ensure natural spacing after punctuation when followed by words (preserve numbers like $14,500 or 3.14)
+  // Ensure breathing spaces after periods and commas
   cleaned = cleaned.replace(/([.!?])(?=[A-Za-z])/g, "$1 ");
   cleaned = cleaned.replace(/(?<!\d),/g, ", ");
   cleaned = cleaned.replace(/,(?!\d)/g, ", ");
@@ -98,5 +129,3 @@ export function prepareSpeechText(text: string): string {
 
   return cleaned.trim();
 }
-
-export default prepareSpeechText;

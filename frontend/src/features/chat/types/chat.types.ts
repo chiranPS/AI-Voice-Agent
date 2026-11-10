@@ -3,13 +3,20 @@ export interface ChatRequest {
   organisation_id: string;
   session_id: string | null;
   message: string;
+  avatar_gender?: "male" | "female";
 }
 
-// FAQ source returned by the backend
+// Unified Source returned by the backend (both Document chunks and FAQs)
 export interface ChatSource {
-  faq_id: string;
-  question: string;
-  category: string | null;
+  type?: "document" | "faq";
+  document_id?: string;
+  document_title?: string;
+  chunk_id?: string;
+  chunk_index?: number;
+  page_number?: number | null;
+  faq_id?: string;
+  question?: string;
+  category?: string | null;
   similarity: number;
 }
 
@@ -17,6 +24,7 @@ export interface ChatSource {
 export interface ChatResponse {
   session_id: string;
   answer: string;
+  audio_base64?: string | null;
   sources: ChatSource[];
   fallback: boolean;
   created_at: string;
@@ -30,6 +38,7 @@ export interface ChatMessage {
   id: string;
   role: MessageRole;
   content: string;
+  audio_base64?: string | null;
   created_at: string;
   sources?: ChatSource[];
   fallback?: boolean;

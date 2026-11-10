@@ -26,6 +26,7 @@ def chat(
             organisation_id=payload.organisation_id,
             session_id=payload.session_id,
             user_message=payload.message,
+            avatar_gender=payload.avatar_gender,
         )
 
         return result

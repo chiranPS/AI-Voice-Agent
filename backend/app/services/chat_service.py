@@ -7,6 +7,7 @@ File: backend/app/services/chat_service.py
 import logging
 import os
 import uuid
+import base64
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -394,6 +395,7 @@ def process_chat_message(
     organisation_id: uuid.UUID,
     session_id: uuid.UUID | None,
     user_message: str,
+    avatar_gender: str = "female",
 ) -> dict:
     """
     Main entry point for processing a chat message:
@@ -537,11 +539,51 @@ def process_chat_message(
             "category": faq["category"],
             "similarity": faq["similarity"],
         })
-
+    # Map voice persona based on request
+    voice_name = "Puck" if avatar_gender == "male" else "Kore"
+    audio_base64 = generate_neural_speech(answer, voice_persona=voice_name)
     return {
         "session_id": session.id,
         "answer": answer,
         "sources": sources,
+        "audio_base64": audio_base64,
         "fallback": fallback,
         "created_at": assistant_record.created_at,
     }
+
+def generate_neural_speech(text: str, voice_persona: str = "Puck") -> str | None:
+    """
+    Generate neural audio for the text response using Gemini's native audio capabilities.
+    Available Gemini voices include: 'Puck' (Male), 'Charon' (Deep Male), 
+    'Kore' (Warm Female), 'Fenrir' (Authoritative Male), 'Aoede' (Engaging Female).
+    Returns a Base64-encoded audio string (audio/mp3 or audio/wav).
+    """
+    try:
+        # Prepare phonetically cleaned text so abbreviations sound natural
+        clean_prompt = f"Read the following university coordinator message aloud in a warm, professional, engaging spoken tone without reading any bullet symbols or raw punctuation:\n\n{text}"
+
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=clean_prompt,
+            config=types.GenerateContentConfig(
+                response_modalities=["AUDIO"],
+                speech_config=types.SpeechConfig(
+                    voice_config=types.VoiceConfig(
+                        prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                            voice_name=voice_persona
+                        )
+                    )
+                ),
+            ),
+        )
+
+        for part in response.candidates[0].content.parts:
+            if part.inline_data:
+                # Returns base64 audio bytes
+                return base64.b64encode(part.inline_data.data).decode("utf-8")
+
+    except Exception as exc:
+        logger.warning("Neural audio synthesis unavailable, falling back to client TTS: %s", exc)
+        return None
+
+    return None

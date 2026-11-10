@@ -13,6 +13,7 @@ import { useSpeechRecognition } from "./features/chat/hooks/useSpeechRecognition
 import { useSpeechSynthesis } from "./features/chat/hooks/useSpeechSynthesis";
 import { prepareSpeechText } from "./utils/speechText";
 import type { AvatarType } from "./features/avatar/types/avatar.types";
+import { useNeuralAudio } from "./features/chat/hooks/useNeuralAudio";
 
 const INACTIVITY_TIMEOUT_MS = 90000; // 90 seconds auto-reset for public kiosk
 
@@ -41,10 +42,23 @@ export const App = () => {
     isSupported: isSpeechSupported,
   } = useSpeechSynthesis(selectedAvatar);
 
-  // 3. STT hook with barge-in callback
+  // 3. Neural Audio Hook (Gemini native neural speech)
+  const { playNeuralAudio, stopNeuralAudio, isAudioPlaying } = useNeuralAudio();
+
+  // 4. STT hook with barge-in callback
   const handleBargeIn = useCallback(() => {
     cancelSpeech();
-  }, [cancelSpeech]);
+    stopNeuralAudio();
+  }, [cancelSpeech, stopNeuralAudio]);
+
+  const handleSendMessage = useCallback(
+    (text: string) => {
+      cancelSpeech();
+      stopNeuralAudio();
+      sendMessage(text, selectedAvatar);
+    },
+    [sendMessage, selectedAvatar, cancelSpeech, stopNeuralAudio]
+  );
 
   const {
     isListening,
@@ -52,16 +66,16 @@ export const App = () => {
     error: speechRecognitionError,
     startListening,
     stopListening,
-  } = useSpeechRecognition(sendMessage, handleBargeIn);
+  } = useSpeechRecognition(handleSendMessage, handleBargeIn);
 
   // Derive 3D Avatar state (idle, listening, thinking, speaking, waving)
   const avatarState: AvatarAgentState = useMemo(() => {
     if (isWaving) return "waving";
     if (isListening) return "listening";
     if (isLoading) return "thinking";
-    if (isSpeaking) return "speaking";
+    if (isSpeaking || isAudioPlaying) return "speaking";
     return "idle";
-  }, [isWaving, isListening, isLoading, isSpeaking]);
+  }, [isWaving, isListening, isLoading, isSpeaking, isAudioPlaying]);
 
   const assistantName = selectedAvatar === "male" ? "Alex" : "Sophia";
   const assistantRole =
@@ -72,6 +86,7 @@ export const App = () => {
   // Trigger interactive wave greeting
   const handleTriggerWave = () => {
     cancelSpeech();
+    stopNeuralAudio();
     setIsWaving(true);
     if (voiceResponsesEnabled && isSpeechSupported) {
       speak(
@@ -87,11 +102,12 @@ export const App = () => {
   // Reset conversation session
   const handleResetSession = useCallback(() => {
     cancelSpeech();
+    stopNeuralAudio();
     stopListening();
     clearConversation();
     setIsWaving(false);
     lastSpokenMessageId.current = null;
-  }, [cancelSpeech, stopListening, clearConversation]);
+  }, [cancelSpeech, stopNeuralAudio, stopListening, clearConversation]);
 
   // Inactivity Auto-Reset Timer for public kiosk readiness
   useEffect(() => {
@@ -120,7 +136,7 @@ export const App = () => {
     };
   }, [messages.length, handleResetSession]);
 
-  // Automatically speak new assistant responses using persona voice
+  // Automatically speak new assistant responses using Neural Voice or Fallback TTS
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
 
@@ -134,11 +150,20 @@ export const App = () => {
 
     lastSpokenMessageId.current = lastMessage.id;
 
-    if (voiceResponsesEnabled && isSpeechSupported) {
+    if (!voiceResponsesEnabled) return;
+
+    // Priority 1: High-fidelity Neural Audio from Backend
+    if (lastMessage.audio_base64) {
+      playNeuralAudio(lastMessage.audio_base64);
+      return;
+    }
+
+    // Priority 2: Client-side Phonetic Web Speech Synthesis Fallback
+    if (isSpeechSupported) {
       const speechText = prepareSpeechText(lastMessage.content);
       speak(speechText, selectedAvatar);
     }
-  }, [messages, selectedAvatar, isSpeechSupported, voiceResponsesEnabled, speak]);
+  }, [messages, selectedAvatar, isSpeechSupported, voiceResponsesEnabled, speak, playNeuralAudio]);
 
   // Voice microphone toggle
   const handleVoiceButtonClick = () => {
@@ -146,6 +171,7 @@ export const App = () => {
       stopListening();
     } else {
       cancelSpeech();
+      stopNeuralAudio();
       startListening();
     }
   };
@@ -153,6 +179,7 @@ export const App = () => {
   // Replay a specific message aloud
   const handleReplayMessage = (text: string) => {
     cancelSpeech();
+    stopNeuralAudio();
     if (isSpeechSupported) {
       const speechText = prepareSpeechText(text);
       speak(speechText, selectedAvatar);
@@ -163,6 +190,7 @@ export const App = () => {
   const handleToggleVoiceResponses = () => {
     if (voiceResponsesEnabled) {
       cancelSpeech();
+      stopNeuralAudio();
       setVoiceResponsesEnabled(false);
     } else {
       setVoiceResponsesEnabled(true);
@@ -173,6 +201,7 @@ export const App = () => {
   const handleAvatarChange = (avatar: AvatarType) => {
     if (avatar === selectedAvatar) return;
     cancelSpeech();
+    stopNeuralAudio();
     setSelectedAvatar(avatar);
   };
 
@@ -222,8 +251,8 @@ export const App = () => {
                   disabled={isLoading}
                   onClick={() => handleAvatarChange("male")}
                   className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-all duration-200 ${selectedAvatar === "male"
-                      ? "bg-[#1769D2] text-white font-bold shadow-2xs"
-                      : "text-[#142D50] hover:bg-slate-100 font-semibold"
+                    ? "bg-[#1769D2] text-white font-bold shadow-2xs"
+                    : "text-[#142D50] hover:bg-slate-100 font-semibold"
                     }`}
                 >
                   <User className="h-3.5 w-3.5" />
@@ -235,8 +264,8 @@ export const App = () => {
                   disabled={isLoading}
                   onClick={() => handleAvatarChange("female")}
                   className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-all duration-200 ${selectedAvatar === "female"
-                      ? "bg-[#1769D2] text-white font-bold shadow-2xs"
-                      : "text-[#142D50] hover:bg-slate-100 font-semibold"
+                    ? "bg-[#1769D2] text-white font-bold shadow-2xs"
+                    : "text-[#142D50] hover:bg-slate-100 font-semibold"
                     }`}
                 >
                   <User className="h-3.5 w-3.5" />
@@ -285,10 +314,7 @@ export const App = () => {
               interimTranscript={interimTranscript}
               onReplayMessage={handleReplayMessage}
               onClearConversation={handleResetSession}
-              onSendMessage={(msg) => {
-                cancelSpeech();
-                sendMessage(msg);
-              }}
+              onSendMessage={handleSendMessage}
               onToggleVoice={handleVoiceButtonClick}
               isListening={isListening}
               speechError={speechRecognitionError || error}

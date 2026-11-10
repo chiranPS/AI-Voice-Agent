@@ -98,29 +98,59 @@ export const KioskChatMessage: React.FC<KioskChatMessageProps> = ({
             <MarkdownContent content={message.content} />
           )}
 
-          {/* ── Grounded Policy Citation Cards [ 📄 View Full Policy > ] ── */}
-          {!isUser && message.sources && message.sources.length > 0 && (
-            <div className="mt-2.5 space-y-1.5">
-              {message.sources.map((src, i) => (
-                <button
-                  key={src.faq_id || i}
-                  type="button"
-                  onClick={() => onOpenSource && onOpenSource(src)}
-                  className="flex w-full items-center justify-between gap-2 rounded-xl border border-blue-200/90 bg-white px-3 py-2 text-left shadow-2xs hover:border-[#1769D2] hover:bg-blue-50/50 transition-all active:scale-[0.99] group"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#1769D2]">
-                      <FileText className="h-3.5 w-3.5" />
-                    </div>
-                    <span className="text-xs font-bold text-[#1769D2] truncate">
-                      {src.question || "View Full Policy"}
-                    </span>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-[#1769D2] shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                </button>
-              ))}
-            </div>
-          )}
+          {/* ── Grounded Institutional Document Sources (Deduplicated & Clean) ── */}
+          {!isUser && message.sources && message.sources.length > 0 && (() => {
+            // Deduplicate by document_title or document_id so multiple chunks from the same document are grouped
+            const uniqueSources = message.sources.reduce((acc: typeof message.sources, current) => {
+              const identifier = current.document_title || current.document_id || current.question || current.faq_id;
+              if (identifier && !acc.some((item) => (item.document_title || item.document_id || item.question || item.faq_id) === identifier)) {
+                acc.push(current);
+              }
+              return acc;
+            }, []);
+
+            return (
+              <div className="mt-2.5 space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] flex items-center gap-1">
+                  <FileText className="h-3 w-3 text-[#1769D2]" />
+                  <span>Verified Source Material:</span>
+                </span>
+                {uniqueSources.map((src, i) => {
+                  const displayTitle =
+                    src.document_title ||
+                    src.question ||
+                    "APIIT Institutional Reference";
+                  const pageInfo = src.page_number ? ` • Page ${src.page_number}` : "";
+
+                  return (
+                    <button
+                      key={src.document_id || src.faq_id || i}
+                      type="button"
+                      onClick={() => onOpenSource && onOpenSource(src)}
+                      className="flex w-full items-center justify-between gap-2 rounded-xl border border-blue-200/90 bg-white px-3 py-2 text-left shadow-2xs hover:border-[#1769D2] hover:bg-blue-50/50 transition-all active:scale-[0.99] group"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#1769D2]">
+                          <FileText className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-xs font-bold text-[#142D50] group-hover:text-[#1769D2] transition-colors truncate">
+                            {displayTitle}
+                          </span>
+                          {pageInfo && (
+                            <span className="text-[10px] font-medium text-[#64748B]">
+                              Official Institutional Record{pageInfo}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-[#1769D2] shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
           {/* Fallback Notice Alert */}
           {!isUser && message.fallback && (

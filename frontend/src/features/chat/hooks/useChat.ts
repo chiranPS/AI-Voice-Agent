@@ -1,11 +1,7 @@
 import { useState } from "react";
-
 import { sendChatMessage } from "../services/chatService";
-
-import type {
-  ChatMessage,
-  ChatRequest,
-} from "../types/chat.types";
+import type { ChatMessage, ChatRequest } from "../types/chat.types";
+import type { AvatarType } from "../../avatar/types/avatar.types";
 
 const ORGANISATION_ID =
   import.meta.env.VITE_ORGANISATION_ID ||
@@ -17,7 +13,7 @@ export const useChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const sendMessage = async (message: string) => {
+  const sendMessage = async (message: string, avatarGender: AvatarType = "female") => {
     const trimmedMessage = message.trim();
 
     if (!trimmedMessage || isLoading) {
@@ -43,6 +39,7 @@ export const useChat = () => {
       organisation_id: ORGANISATION_ID,
       session_id: sessionId,
       message: trimmedMessage,
+      avatar_gender: avatarGender,
     };
 
     try {
@@ -54,6 +51,7 @@ export const useChat = () => {
         id: crypto.randomUUID(),
         role: "assistant",
         content: response.answer,
+        audio_base64: response.audio_base64,
         created_at: response.created_at,
         sources: response.sources,
         fallback: response.fallback,

@@ -1,4 +1,3 @@
-
 import uuid
 from datetime import datetime
 from typing import Annotated, Literal, Union
@@ -10,6 +9,7 @@ class ChatRequest(BaseModel):
     organisation_id: uuid.UUID
     session_id: uuid.UUID | None = None
     message: str = Field(min_length=2, max_length=2000)
+    avatar_gender: str = "female"
 
 
 class FAQSource(BaseModel):
@@ -39,6 +39,7 @@ ChatSource = Annotated[
 class ChatResponse(BaseModel):
     session_id: uuid.UUID
     answer: str
+    audio_base64: str | None = None
     sources: list[ChatSource]
     fallback: bool
     created_at: datetime
