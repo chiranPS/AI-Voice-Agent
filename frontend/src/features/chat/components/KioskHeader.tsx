@@ -36,7 +36,7 @@ const SUPPORTED_LANGUAGES: LanguageOption[] = [
  * [🎓] NORTHSTAR UNIVERSITY             [ 🌐 EN ▾ | ♿ | ⛶ ]
  *      VIRTUAL INFORMATION KIOSK
  */
-export const KioskHeader = ({}: KioskHeaderProps) => {
+export const KioskHeader = ({ }: KioskHeaderProps) => {
   // Screen and Popover States
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
@@ -99,10 +99,10 @@ export const KioskHeader = ({}: KioskHeaderProps) => {
   // Toggle Fullscreen Kiosk
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
+      document.documentElement.requestFullscreen().catch(() => { });
     } else {
       if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
+        document.exitFullscreen().catch(() => { });
       }
     }
   };
@@ -156,10 +156,10 @@ export const KioskHeader = ({}: KioskHeaderProps) => {
         {/* University Name & Subtitle */}
         <div className="flex flex-col justify-center min-w-0">
           <h1 className="text-xs xs:text-sm sm:text-base font-extrabold uppercase tracking-tight text-[#142D50] leading-tight truncate">
-            Northstar University
+            APIIT Sri Lanka
           </h1>
           <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#64748B] mt-0.5 leading-none">
-            Virtual Information Kiosk
+            AI Admissions & Marketing Kiosk
           </p>
         </div>
       </div>
@@ -181,9 +181,8 @@ export const KioskHeader = ({}: KioskHeaderProps) => {
             <Globe className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#1769D2]" />
             <span>{selectedLanguage.nativeName}</span>
             <ChevronDown
-              className={`h-3 w-3 text-[#64748B] transition-transform duration-200 ${
-                isLangMenuOpen ? "rotate-180" : ""
-              }`}
+              className={`h-3 w-3 text-[#64748B] transition-transform duration-200 ${isLangMenuOpen ? "rotate-180" : ""
+                }`}
             />
           </button>
 
@@ -200,11 +199,10 @@ export const KioskHeader = ({}: KioskHeaderProps) => {
                     key={lang.code}
                     type="button"
                     onClick={() => handleSelectLanguage(lang)}
-                    className={`flex w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-xs font-semibold transition ${
-                      isSelected
+                    className={`flex w-full items-center justify-between rounded-xl px-2.5 py-1.5 text-xs font-semibold transition ${isSelected
                         ? "bg-blue-50 text-[#1769D2]"
                         : "text-[#142D50] hover:bg-[#F8FAFC]"
-                    }`}
+                      }`}
                   >
                     <span>{lang.name}</span>
                     {isSelected && <Check className="h-3.5 w-3.5 text-[#1769D2]" />}
@@ -229,11 +227,10 @@ export const KioskHeader = ({}: KioskHeaderProps) => {
             aria-expanded={isAccessMenuOpen}
             aria-label="Accessibility settings"
             title="Accessibility Settings"
-            className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full transition active:scale-95 ${
-              isLargeText || isHighContrast
+            className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full transition active:scale-95 ${isLargeText || isHighContrast
                 ? "bg-blue-50 text-[#1769D2]"
                 : "text-[#142D50] hover:bg-white hover:text-[#1769D2]"
-            }`}
+              }`}
           >
             <Accessibility className="h-4 w-4" />
           </button>
@@ -260,11 +257,10 @@ export const KioskHeader = ({}: KioskHeaderProps) => {
                   <button
                     type="button"
                     onClick={toggleTextSize}
-                    className={`h-6 px-2.5 rounded-lg text-xs font-bold border transition ${
-                      isLargeText
+                    className={`h-6 px-2.5 rounded-lg text-xs font-bold border transition ${isLargeText
                         ? "bg-[#1769D2] text-white border-[#1769D2]"
                         : "bg-[#F8FAFC] text-[#64748B] border-[#E2E8F0]"
-                    }`}
+                      }`}
                   >
                     {isLargeText ? "Large" : "Default"}
                   </button>
@@ -281,11 +277,10 @@ export const KioskHeader = ({}: KioskHeaderProps) => {
                   <button
                     type="button"
                     onClick={toggleHighContrast}
-                    className={`h-6 px-2.5 rounded-lg text-xs font-bold border transition ${
-                      isHighContrast
+                    className={`h-6 px-2.5 rounded-lg text-xs font-bold border transition ${isHighContrast
                         ? "bg-[#142D50] text-white border-[#142D50]"
                         : "bg-[#F8FAFC] text-[#64748B] border-[#E2E8F0]"
-                    }`}
+                      }`}
                   >
                     {isHighContrast ? "High" : "Standard"}
                   </button>

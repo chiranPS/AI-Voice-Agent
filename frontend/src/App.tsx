@@ -66,8 +66,8 @@ export const App = () => {
   const assistantName = selectedAvatar === "male" ? "Alex" : "Sophia";
   const assistantRole =
     selectedAvatar === "male"
-      ? "Lead Academic Advisor"
-      : "Senior Campus Concierge";
+      ? "AI Admissions Coordinator"
+      : "Senior Admissions Coordinator";
 
   // Trigger interactive wave greeting
   const handleTriggerWave = () => {
@@ -75,7 +75,7 @@ export const App = () => {
     setIsWaving(true);
     if (voiceResponsesEnabled && isSpeechSupported) {
       speak(
-        `Hello! Welcome to Northstar University. I am ${assistantName}, your virtual concierge. How may I assist you today?`,
+        `Hello! Welcome to APIIT Sri Lanka. I am ${assistantName}, your AI Admissions and Marketing Coordinator. How may I assist you with your higher education journey today?`,
         selectedAvatar
       );
     }
@@ -221,11 +221,10 @@ export const App = () => {
                   type="button"
                   disabled={isLoading}
                   onClick={() => handleAvatarChange("male")}
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-all duration-200 ${
-                    selectedAvatar === "male"
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-all duration-200 ${selectedAvatar === "male"
                       ? "bg-[#1769D2] text-white font-bold shadow-2xs"
                       : "text-[#142D50] hover:bg-slate-100 font-semibold"
-                  }`}
+                    }`}
                 >
                   <User className="h-3.5 w-3.5" />
                   <span>Alex</span>
@@ -235,11 +234,10 @@ export const App = () => {
                   type="button"
                   disabled={isLoading}
                   onClick={() => handleAvatarChange("female")}
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-all duration-200 ${
-                    selectedAvatar === "female"
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-all duration-200 ${selectedAvatar === "female"
                       ? "bg-[#1769D2] text-white font-bold shadow-2xs"
                       : "text-[#142D50] hover:bg-slate-100 font-semibold"
-                  }`}
+                    }`}
                 >
                   <User className="h-3.5 w-3.5" />
                   <span>Sophia</span>

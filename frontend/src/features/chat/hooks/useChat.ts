@@ -7,7 +7,9 @@ import type {
   ChatRequest,
 } from "../types/chat.types";
 
-const ORGANISATION_ID = "c0e954d5-1e9f-4d10-8493-3553c873c204";
+const ORGANISATION_ID =
+  import.meta.env.VITE_ORGANISATION_ID ||
+  "c0e954d5-1e9f-4d10-8493-3553c873c204";
 
 export const useChat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);

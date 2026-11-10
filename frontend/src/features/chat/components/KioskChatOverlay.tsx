@@ -27,9 +27,9 @@ interface KioskChatOverlayProps {
 }
 
 const QUICK_STARTER_PROMPTS = [
-  "How do I apply for undergraduate admissions?",
-  "What are the university library opening hours?",
-  "Where is the student services desk located?",
+  "What computing degrees are offered with Staffordshire University?",
+  "What are the entry requirements after A/Levels or O/Levels?",
+  "What are the tuition fees and payment instalment options?",
 ];
 
 /**
@@ -58,8 +58,8 @@ export const KioskChatOverlay = ({
   const assistantName = selectedAvatar === "male" ? "Alex" : "Sophia";
   const assistantRole =
     selectedAvatar === "male"
-      ? "Lead Academic Advisor"
-      : "Senior Campus Concierge";
+      ? "AI Admissions Coordinator"
+      : "Senior Admissions Coordinator";
 
   // Check scroll position to determine whether user intentionally scrolled up
   const handleScroll = () => {
@@ -145,7 +145,7 @@ export const KioskChatOverlay = ({
                 <div className="relative rounded-2xl rounded-tl-xs p-3.5 sm:p-4 text-xs sm:text-sm lg:text-base leading-relaxed bg-[#F1F5F9] text-[#142D50] border border-[#E2E8F0]/80 shadow-2xs">
                   <p className="font-medium">
                     Hello! 👋<br />
-                    I'm your Northstar University AI Assistant. How can I help you today?
+                    Welcome to APIIT Sri Lanka. I am your AI Admissions and Marketing Coordinator. How may I assist you with your degree options, entry criteria, or campus life today?
                   </p>
                 </div>
 
