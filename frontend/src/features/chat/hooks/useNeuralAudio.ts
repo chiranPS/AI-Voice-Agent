@@ -1,56 +1,73 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 
 export const useNeuralAudio = () => {
-    const [isPlaying, setIsPlaying] = useState(false);
-    const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-    const playBase64Audio = useCallback((base64Data: string, onEnded?: () => void) => {
-        // Stop any existing audio
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current = null;
-        }
+  const playNeuralAudio = useCallback(
+    (audioPayload: string, onEnded?: () => void) => {
+      // Cancel any ongoing audio playback (barge-in support)
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
 
-        try {
-            const audioUrl = `data:audio/mp3;base64,${base64Data}`;
-            const audio = new Audio(audioUrl);
-            audioRef.current = audio;
+      try {
+        const audioSrc = audioPayload.startsWith("data:")
+          ? audioPayload
+          : `data:audio/wav;base64,${audioPayload}`;
 
-            audio.onplay = () => setIsPlaying(true);
-            audio.onended = () => {
-                setIsPlaying(false);
-                audioRef.current = null;
-                if (onEnded) onEnded();
-            };
-            audio.onerror = () => {
-                setIsPlaying(false);
-                audioRef.current = null;
-            };
+        const audio = new Audio(audioSrc);
+        audioRef.current = audio;
 
-            audio.play().catch((err) => {
-                console.warn("Audio autoplay blocked by browser policy:", err);
-                setIsPlaying(false);
-            });
-        } catch (err) {
-            console.error("Failed to decode and play neural audio:", err);
-            setIsPlaying(false);
-        }
-    }, []);
+        audio.onplay = () => setIsPlaying(true);
+        audio.onended = () => {
+          setIsPlaying(false);
+          audioRef.current = null;
+          if (onEnded) onEnded();
+        };
+        audio.onerror = (e) => {
+          console.warn("Neural audio playback error, falling back to TTS:", e);
+          setIsPlaying(false);
+          audioRef.current = null;
+          if (onEnded) onEnded();
+        };
 
-    const stopAudio = useCallback(() => {
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current = null;
-        }
+        audio.play().catch((err) => {
+          console.warn("Audio autoplay blocked by browser policy:", err);
+          setIsPlaying(false);
+        });
+      } catch (err) {
+        console.error("Failed to construct audio element:", err);
         setIsPlaying(false);
-    }, []);
+      }
+    },
+    []
+  );
 
-    return {
-        playBase64Audio,
-        stopAudio,
-        isPlaying,
-        playNeuralAudio: playBase64Audio,
-        stopNeuralAudio: stopAudio,
-        isAudioPlaying: isPlaying,
+  const stopNeuralAudio = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setIsPlaying(false);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
     };
+  }, []);
+
+  return {
+    playNeuralAudio,
+    stopNeuralAudio,
+    isAudioPlaying: isPlaying,
+    playBase64Audio: playNeuralAudio,
+    stopAudio: stopNeuralAudio,
+    isPlaying,
+  };
 };
