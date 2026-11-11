@@ -17,10 +17,15 @@ export const useNeuralAudio = () => {
           ? audioPayload
           : `data:audio/wav;base64,${audioPayload}`;
 
+        const tPlayInit = performance.now();
         const audio = new Audio(audioSrc);
         audioRef.current = audio;
 
-        audio.onplay = () => setIsPlaying(true);
+        audio.onplay = () => {
+          setIsPlaying(true);
+          const tPlayStart = Math.round(performance.now() - tPlayInit);
+          console.log(`[Audio Latency] Browser Audio decode and playback start: ${tPlayStart}ms`);
+        };
         audio.onended = () => {
           setIsPlaying(false);
           audioRef.current = null;

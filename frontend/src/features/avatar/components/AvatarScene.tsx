@@ -44,11 +44,11 @@ export default function AvatarScene({
                     castShadow
                 />
 
-                {/* Soft Fill Light with light-blue tint */}
+                {/* Soft Fill Light with neutral studio tone */}
                 <directionalLight
                     position={[-2.5, 2, 2]}
-                    intensity={0.8}
-                    color="#e0f2fe"
+                    intensity={0.9}
+                    color="#ffffff"
                 />
 
                 {/* Rim / Back Light to give character professional silhouette depth */}

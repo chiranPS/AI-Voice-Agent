@@ -1,5 +1,6 @@
 import asyncio
 import os
+import time
 import logging
 from google.genai import types
 from app.services.chat_service import client
@@ -104,6 +105,7 @@ class GeminiTTSProvider(BaseTTSProvider):
         Races all candidate Gemini TTS models concurrently.
         First valid response wins; remaining tasks are cancelled.
         """
+        t0 = time.perf_counter()
         tasks: dict[asyncio.Task, str] = {}
 
         for model_name in self.models:
@@ -125,10 +127,12 @@ class GeminiTTSProvider(BaseTTSProvider):
                     model_name, audio_data = await future
                     winner_model = model_name
                     winner_audio = audio_data
+                    duration = time.perf_counter() - t0
                     logger.info(
-                        "Gemini TTS Race won by model: '%s' (payload length: %d)",
+                        "Gemini TTS Race won by model: '%s' (payload length: %d, duration: %.3fs)",
                         winner_model,
                         len(winner_audio),
+                        duration,
                     )
                     break
                 except Exception as task_exc:

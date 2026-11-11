@@ -6,7 +6,7 @@ import {
   X,
   Sparkles,
 } from "lucide-react";
-import type { ChatMessage as ChatMessageType } from "../types/chat.types";
+import type { ChatMessage as ChatMessageType, ChatSource } from "../types/chat.types";
 import type { AvatarType } from "../../avatar/types/avatar.types";
 import KioskChatMessage from "./KioskChatMessage";
 import KioskInputBar from "./KioskInputBar";
@@ -26,24 +26,22 @@ interface KioskChatOverlayProps {
   speechError?: string | null;
 }
 
-const QUICK_STARTER_PROMPTS = [
+const STARTER_PROMPTS = [
   "What computing degrees are offered with Staffordshire University?",
   "What are the entry requirements after A/Levels or O/Levels?",
   "What are the tuition fees and payment instalment options?",
 ];
 
 /**
- * Dedicated Interactive Conversation Pane
- * Integrated seamlessly into the right side of the combined kiosk workspace:
- * - Scrollable message thread with initial greeting
- * - Policy citation modal integration
- * - Fixed bottom touchscreen input bar [ 🎤 | Type your question... | ➤ ]
+ * Dedicated Interactive Conversation Feed
+ * Naturally part of the single unified kiosk surface without boxed outer cards.
  */
 export const KioskChatOverlay = ({
   messages,
   isLoading,
   selectedAvatar,
   interimTranscript,
+  onSelectSuggestion,
   onReplayMessage,
   onClearConversation,
   onSendMessage,
@@ -53,7 +51,7 @@ export const KioskChatOverlay = ({
 }: KioskChatOverlayProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [userHasScrolledUp, setUserHasScrolledUp] = useState(false);
-  const [activeSourceModal, setActiveSourceModal] = useState<any | null>(null);
+  const [activeSourceModal, setActiveSourceModal] = useState<ChatSource | null>(null);
 
   const assistantName = selectedAvatar === "male" ? "Alex" : "Sophia";
   const assistantRole =
@@ -105,11 +103,11 @@ export const KioskChatOverlay = ({
   }, [messages]);
 
   return (
-    <div className="relative flex flex-col h-full w-full min-h-0 bg-transparent p-4 sm:p-5 md:p-6 overflow-hidden justify-between">
-      {/* ── Active Conversation Top Bar (If turns > 0) ── */}
+    <div className="relative flex flex-col h-full w-full min-h-0 bg-white p-3 sm:p-5 md:p-6 overflow-hidden justify-between">
+      {/* ── Active Conversation Header (Only when conversation has started) ── */}
       {messages.length > 0 && (
-        <div className="flex items-center justify-between pb-2.5 border-b border-[#E2E8F0] shrink-0 mb-1">
-          <span className="text-[10px] sm:text-[11px] font-bold text-[#64748B] uppercase tracking-wider">
+        <div className="flex items-center justify-between pb-2 border-b border-[#E5E7EB] shrink-0 mb-2">
+          <span className="text-[10px] sm:text-[11px] font-bold text-[#6B7280] uppercase tracking-wider">
             {messages.length} {messages.length === 1 ? "Message" : "Messages"} in Session
           </span>
 
@@ -118,10 +116,10 @@ export const KioskChatOverlay = ({
               type="button"
               onClick={onClearConversation}
               title="Clear Session History"
-              className="flex items-center gap-1 text-[11px] font-bold text-[#64748B] hover:text-[#1769D2] transition px-2 py-0.5 rounded-lg hover:bg-slate-50 active:scale-95"
+              className="flex items-center gap-1 text-[11px] font-semibold text-[#6B7280] hover:text-[#ED1C24] transition px-2 py-0.5 rounded-lg hover:bg-[#FEECEE] active:scale-95"
             >
               <RotateCcw className="h-3 w-3" />
-              <span>Clear</span>
+              <span>Clear History</span>
             </button>
           )}
         </div>
@@ -131,44 +129,43 @@ export const KioskChatOverlay = ({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex-1 space-y-3 overflow-y-auto pr-1 py-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent min-h-0"
+        className="flex-1 space-y-3.5 overflow-y-auto pr-1 py-1 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent min-h-0"
       >
         {messages.length === 0 ? (
-          /* ── Default Initial Assistant Greeting (as shown in visual reference) ── */
-          <div className="flex flex-col space-y-3 pt-1">
+          /* ── Default Initial Assistant Greeting ── */
+          <div className="flex flex-col space-y-4 pt-2">
             <div className="flex w-full items-start gap-2.5 sm:gap-3 justify-start">
-              <div className="w-9 sm:w-10 shrink-0 flex justify-center pt-0.5">
-                <AssistantAvatarBadge gender={selectedAvatar} size="md" />
+              <div className="w-8 sm:w-9 shrink-0 flex justify-center pt-0.5">
+                <AssistantAvatarBadge gender={selectedAvatar} size="sm" />
               </div>
 
-              <div className="flex max-w-[88%] sm:max-w-[82%] flex-col items-start">
-                <div className="relative rounded-2xl rounded-tl-xs p-3.5 sm:p-4 text-xs sm:text-sm lg:text-base leading-relaxed bg-[#F1F5F9] text-[#142D50] border border-[#E2E8F0]/80 shadow-2xs">
+              <div className="flex max-w-[90%] sm:max-w-[85%] flex-col items-start">
+                <div className="relative rounded-2xl rounded-tl-xs p-4 text-xs sm:text-sm leading-relaxed bg-[#F5F6F7] text-[#202124] border border-[#E5E7EB]/80 shadow-2xs">
                   <p className="font-medium">
                     Hello! 👋<br />
-                    Welcome to APIIT Sri Lanka. I am your AI Admissions and Marketing Coordinator. How may I assist you with your degree options, entry criteria, or campus life today?
+                    Welcome to APIIT Sri Lanka. I am {assistantName}, your AI Admissions and Marketing Coordinator. How may I assist you with our degree programmes, entry requirements, tuition fees, or campus facilities today?
                   </p>
                 </div>
 
-                <div className="flex items-center gap-1 px-1 mt-1 text-[10px] sm:text-xs font-medium text-slate-500 justify-start">
-                  <span>10:24 AM</span>
-                  <span className="text-[#1769D2] font-bold">✓✓</span>
+                <div className="flex items-center gap-1 px-1 mt-1 text-[10px] sm:text-xs font-medium text-[#6B7280]">
+                  <span>Just now</span>
                 </div>
               </div>
             </div>
 
-            {/* Quick interactive touch prompts for zero-state friendliness */}
-            <div className="mt-3 pl-11 sm:pl-13 space-y-1.5">
-              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#64748B] flex items-center gap-1">
-                <Sparkles className="h-3 w-3 text-[#1769D2]" />
-                <span>Suggested questions:</span>
+            {/* Quick Starter Prompts for zero-state onboarding */}
+            <div className="mt-3 pl-10 sm:pl-12 space-y-2">
+              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#6B7280] flex items-center gap-1">
+                <Sparkles className="h-3 w-3 text-[#ED1C24]" />
+                <span>Popular inquiries:</span>
               </span>
               <div className="flex flex-col gap-1.5">
-                {QUICK_STARTER_PROMPTS.map((prompt, idx) => (
+                {STARTER_PROMPTS.map((prompt, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => onSendMessage(prompt)}
-                    className="text-left text-xs font-semibold text-[#1769D2] hover:text-[#0D47A1] bg-blue-50/70 hover:bg-blue-100/70 border border-blue-100 px-3 py-1.5 rounded-xl transition-all active:scale-[0.99] truncate"
+                    className="text-left text-xs font-medium text-[#202124] hover:text-[#ED1C24] bg-[#F5F6F7] hover:bg-[#FEECEE] border border-[#E5E7EB] hover:border-[#ED1C24]/30 px-3.5 py-2 rounded-xl transition-all active:scale-[0.99] truncate"
                   >
                     "{prompt}"
                   </button>
@@ -196,24 +193,24 @@ export const KioskChatOverlay = ({
         {/* Real-time speech preview bubble while user speaks */}
         {interimTranscript && (
           <div className="flex w-full items-start justify-end gap-2.5 mt-2">
-            <div className="flex max-w-[80%] flex-col items-end">
-              <div className="rounded-2xl rounded-tr-xs border border-blue-200 bg-blue-50/90 px-3.5 py-2 text-xs sm:text-sm italic text-[#142D50] shadow-2xs animate-pulse">
+            <div className="flex max-w-[85%] flex-col items-end">
+              <div className="rounded-2xl rounded-tr-xs border border-[#34EBAE] bg-[#34EBAE]/10 px-4 py-2.5 text-xs sm:text-sm italic text-[#202124] shadow-2xs animate-pulse">
                 "{interimTranscript}..."
               </div>
             </div>
           </div>
         )}
 
-        {/* Natural Animated Typing Indicator (Universal for Greetings & Inquiries) */}
+        {/* Natural Animated Typing Indicator */}
         {isLoading && (
           <div className="flex w-full items-start gap-2.5 sm:gap-3 justify-start animate-fade-in">
-            <div className="w-9 sm:w-10 shrink-0 flex justify-center pt-0.5">
-              <AssistantAvatarBadge gender={selectedAvatar} size="md" />
+            <div className="w-8 sm:w-9 shrink-0 flex justify-center pt-0.5">
+              <AssistantAvatarBadge gender={selectedAvatar} size="sm" />
             </div>
-            <div className="relative rounded-2xl rounded-tl-xs px-4 py-3 bg-[#F1F5F9] text-[#142D50] border border-[#E2E8F0]/80 shadow-2xs inline-flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#1769D2]/70 animate-bounce [animation-delay:-0.3s]" />
-              <span className="h-2 w-2 rounded-full bg-[#1769D2]/70 animate-bounce [animation-delay:-0.15s]" />
-              <span className="h-2 w-2 rounded-full bg-[#1769D2]/70 animate-bounce" />
+            <div className="relative rounded-2xl rounded-tl-xs px-4 py-3 bg-[#F5F6F7] text-[#202124] border border-[#E5E7EB] shadow-2xs inline-flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#ED1C24] animate-bounce [animation-delay:-0.3s]" />
+              <span className="h-2 w-2 rounded-full bg-[#ED1C24] animate-bounce [animation-delay:-0.15s]" />
+              <span className="h-2 w-2 rounded-full bg-[#ED1C24] animate-bounce" />
             </div>
           </div>
         )}
@@ -224,40 +221,43 @@ export const KioskChatOverlay = ({
         <button
           type="button"
           onClick={() => scrollToBottom(true)}
-          className="absolute bottom-16 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-white px-3.5 py-1 text-xs font-bold text-[#142D50] shadow-md hover:bg-slate-50 transition active:scale-95 z-20"
+          className="absolute bottom-20 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full border border-[#E5E7EB] bg-white px-3.5 py-1 text-xs font-bold text-[#202124] shadow-md hover:bg-[#F5F6F7] transition active:scale-95 z-20"
         >
-          <ArrowDown className="h-3 w-3 text-[#1769D2]" />
+          <ArrowDown className="h-3 w-3 text-[#ED1C24]" />
           <span>Latest message</span>
         </button>
       )}
 
       {/* ── Fixed Bottom Integrated Input Bar ── */}
-      <div className="shrink-0 w-full pt-2.5 border-t border-[#E2E8F0]/80">
+      <div className="shrink-0 w-full pt-2">
         <KioskInputBar
           onSendMessage={onSendMessage}
           onToggleVoice={onToggleVoice}
           isListening={isListening}
           isLoading={isLoading}
           speechError={speechError}
+          onSelectSuggestion={onSelectSuggestion}
         />
       </div>
 
-      {/* ── Full Policy Detail Modal ── */}
+      {/* ── Source Citation Modal ── */}
       {activeSourceModal && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="relative flex flex-col max-h-[90%] w-full max-w-lg rounded-2xl border border-[#E2E8F0] bg-white p-4 shadow-xl overflow-hidden">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-2.5 border-b border-[#E2E8F0]">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-[#1769D2]">
-                  <FileText className="h-4 w-4" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
+          <div className="relative w-full max-w-lg rounded-3xl border border-[#E5E7EB] bg-white p-5 sm:p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 pb-3 border-b border-[#E5E7EB]">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FEECEE] text-[#ED1C24]">
+                  <FileText className="h-5 w-5" />
                 </div>
-                <div className="min-w-0">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#64748B]">
-                    Institutional Knowledge Reference
-                  </h4>
-                  <p className="text-sm font-bold text-[#142D50] truncate">
-                    {activeSourceModal.document_title || activeSourceModal.question || "APIIT Document Citation"}
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-[#202124] line-clamp-1">
+                    {activeSourceModal.document_title || "Verified Institutional Source"}
+                  </h3>
+                  <p className="text-xs text-[#6B7280]">
+                    {activeSourceModal.page_number
+                      ? `Official Policy Excerpt • Page ${activeSourceModal.page_number}`
+                      : "APIIT Knowledge Base"}
                   </p>
                 </div>
               </div>
@@ -265,30 +265,38 @@ export const KioskChatOverlay = ({
               <button
                 type="button"
                 onClick={() => setActiveSourceModal(null)}
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+                aria-label="Close reference modal"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-[#6B7280] hover:bg-[#F5F6F7] hover:text-[#202124] transition"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            {/* Modal Content */}
-            <div className="flex-1 overflow-y-auto py-3 text-xs sm:text-sm text-[#142D50] leading-relaxed space-y-2">
-              <p className="font-semibold text-[#1769D2]">
-                Category: {activeSourceModal.category || "Official University Guidelines"}
-              </p>
-              <div className="rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] p-3 text-xs leading-relaxed whitespace-pre-wrap">
-                {activeSourceModal.answer || activeSourceModal.content || "Full policy text is grounded in the Northstar University knowledge base."}
+            {/* Content Details */}
+            <div className="mt-4 space-y-3">
+              <div className="rounded-2xl bg-[#F5F6F7] p-3.5 text-xs text-[#202124] font-medium leading-relaxed max-h-[300px] overflow-y-auto">
+                <p className="whitespace-pre-wrap">
+                  {activeSourceModal.question ||
+                    "This institutional content is verified from the official APIIT Sri Lanka prospectus and regulatory course guidelines."}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-[#6B7280] pt-1">
+                <span>Verified by Admissions Office</span>
+                <span className="font-semibold text-[#ED1C24]">
+                  APIIT Colombo City Campus
+                </span>
               </div>
             </div>
 
-            {/* Modal Footer */}
-            <div className="pt-2.5 border-t border-[#E2E8F0] flex items-center justify-end gap-2">
+            {/* Footer */}
+            <div className="mt-5 flex justify-end">
               <button
                 type="button"
                 onClick={() => setActiveSourceModal(null)}
-                className="rounded-xl bg-[#1769D2] px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 transition"
+                className="px-4 py-2 rounded-xl bg-[#202124] hover:bg-black text-white text-xs font-semibold transition active:scale-95"
               >
-                Done
+                Close Reference
               </button>
             </div>
           </div>

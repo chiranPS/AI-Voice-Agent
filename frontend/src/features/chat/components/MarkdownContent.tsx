@@ -7,11 +7,12 @@ interface MarkdownContentProps {
 /**
  * Lightweight, accessible Markdown renderer tailored for university kiosk answers.
  * Parses headings, bullet lists, numbered lists, bold text, inline code, and paragraphs.
+ * Styled with APIIT Red (#ED1C24) and Dark Charcoal (#202124).
  */
 export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => {
   if (!content) return null;
 
-  // Split content into blocks by double newlines or single newlines
+  // Split content into lines
   const lines = content.split("\n");
 
   const blocks: React.ReactNode[] = [];
@@ -27,11 +28,11 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => 
       <ListTag
         key={`list-${keyCounter++}`}
         className={`my-2 space-y-1.5 ${
-          isUl ? "list-disc pl-5 marker:text-[#1769D2]" : "list-decimal pl-5 marker:font-bold marker:text-[#142D50]"
+          isUl ? "list-disc pl-5 marker:text-[#ED1C24]" : "list-decimal pl-5 marker:font-bold marker:text-[#202124]"
         }`}
       >
         {currentList.items.map((item, idx) => (
-          <li key={idx} className="text-xs sm:text-sm leading-relaxed text-[#142D50]">
+          <li key={idx} className="text-xs sm:text-sm leading-relaxed text-[#202124]">
             {parseInline(item)}
           </li>
         ))}
@@ -55,7 +56,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => 
       blocks.push(
         <h4
           key={`h4-${keyCounter++}`}
-          className="mt-3 mb-1 text-xs sm:text-sm font-bold uppercase tracking-wider text-[#142D50] border-b border-[#E2E8F0]/70 pb-1"
+          className="mt-3 mb-1 text-xs sm:text-sm font-bold uppercase tracking-wider text-[#202124] border-b border-[#E5E7EB] pb-1"
         >
           {parseInline(line.replace(/^###\s+/, ""))}
         </h4>
@@ -68,7 +69,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => 
       blocks.push(
         <h3
           key={`h3-${keyCounter++}`}
-          className="mt-3.5 mb-1.5 text-sm sm:text-base font-bold text-[#142D50]"
+          className="mt-3.5 mb-1.5 text-sm sm:text-base font-bold text-[#202124]"
         >
           {parseInline(line.replace(/^##\s+/, ""))}
         </h3>
@@ -81,7 +82,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => 
       blocks.push(
         <h2
           key={`h2-${keyCounter++}`}
-          className="mt-4 mb-2 text-base sm:text-lg font-bold text-[#142D50]"
+          className="mt-4 mb-2 text-base sm:text-lg font-bold text-[#202124]"
         >
           {parseInline(line.replace(/^#\s+/, ""))}
         </h2>
@@ -118,7 +119,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => 
     blocks.push(
       <p
         key={`p-${keyCounter++}`}
-        className="my-1.5 text-xs sm:text-sm leading-relaxed text-[#142D50] first:mt-0 last:mb-0"
+        className="my-1.5 text-xs sm:text-sm leading-relaxed text-[#202124] first:mt-0 last:mb-0"
       >
         {parseInline(line)}
       </p>
@@ -134,7 +135,6 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content }) => 
  * Parses inline formatting: **bold**, `code`, and [links](url)
  */
 function parseInline(text: string): React.ReactNode {
-  // Regex splitting by bold (**...**), inline code (`...`), or links ([text](url))
   const parts: React.ReactNode[] = [];
   const regex = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g;
   let lastIndex = 0;
@@ -148,7 +148,7 @@ function parseInline(text: string): React.ReactNode {
     const token = match[0];
     if (token.startsWith("**") && token.endsWith("**")) {
       parts.push(
-        <strong key={`b-${match.index}`} className="font-bold text-[#142D50]">
+        <strong key={`b-${match.index}`} className="font-bold text-[#202124]">
           {token.slice(2, -2)}
         </strong>
       );
@@ -156,7 +156,7 @@ function parseInline(text: string): React.ReactNode {
       parts.push(
         <code
           key={`c-${match.index}`}
-          className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-mono text-[#1769D2]"
+          className="rounded bg-[#F5F6F7] px-1.5 py-0.5 text-[11px] font-mono text-[#ED1C24] border border-[#E5E7EB]"
         >
           {token.slice(1, -1)}
         </code>
@@ -170,7 +170,7 @@ function parseInline(text: string): React.ReactNode {
             href={linkMatch[2]}
             target="_blank"
             rel="noopener noreferrer"
-            className="font-semibold text-[#1769D2] underline decoration-blue-300 hover:text-blue-800"
+            className="font-semibold text-[#ED1C24] underline decoration-red-300 hover:text-[#D91920]"
           >
             {linkMatch[1]}
           </a>
@@ -191,4 +191,3 @@ function parseInline(text: string): React.ReactNode {
 }
 
 export default MarkdownContent;
-

@@ -1,15 +1,12 @@
 import React, { useState } from "react";
 import {
-  User,
-  CheckCheck,
   FileText,
-  ChevronRight,
   Volume2,
   Copy,
   Check,
-  AlertCircle,
+  ChevronRight,
 } from "lucide-react";
-import type { ChatMessage as ChatMessageType } from "../types/chat.types";
+import type { ChatMessage as ChatMessageType, ChatSource } from "../types/chat.types";
 import type { AvatarType } from "../../avatar/types/avatar.types";
 import AssistantAvatarBadge from "./AssistantAvatarBadge";
 import MarkdownContent from "./MarkdownContent";
@@ -22,15 +19,14 @@ interface KioskChatMessageProps {
   isFirstInGroup?: boolean;
   isLastInGroup?: boolean;
   onReplay?: (text: string) => void;
-  onOpenSource?: (source: any) => void;
+  onOpenSource?: (source: ChatSource) => void;
 }
 
 /**
- * Kiosk Chat Message Bubble
- * Accurately styled to match the Northstar University Kiosk visual reference:
- * - Assistant: Circular avatar picture, light-gray bubble, timestamp + double checkmarks ✓✓,
- *   institutional document reference cards [📄 View Full Policy >]
- * - Visitor: Royal blue bubble, user avatar badge, timestamp + double checkmarks ✓✓
+ * Modern University Kiosk Chat Message Bubble
+ * - Distinguished visitor and assistant message surfaces
+ * - Consistent typography, readable line heights
+ * - Clean document source citation badges
  */
 export const KioskChatMessage: React.FC<KioskChatMessageProps> = ({
   message,
@@ -61,9 +57,9 @@ export const KioskChatMessage: React.FC<KioskChatMessageProps> = ({
     <div
       className={`flex w-full items-start gap-2.5 sm:gap-3 ${
         isUser ? "justify-end" : "justify-start"
-      } ${isFirstInGroup ? "mt-3 first:mt-0" : "mt-1.5"}`}
+      } ${isFirstInGroup ? "mt-3.5 first:mt-0" : "mt-1.5"}`}
     >
-      {/* ── Left: Assistant Avatar Badge (Only on Assistant messages) ── */}
+      {/* ── Left: Assistant Avatar Badge (Assistant only) ── */}
       {!isUser && (
         <div className="w-8 sm:w-9 shrink-0 flex justify-center pt-0.5">
           {isFirstInGroup ? (
@@ -76,32 +72,32 @@ export const KioskChatMessage: React.FC<KioskChatMessageProps> = ({
 
       {/* ── Message Bubble Column ── */}
       <div
-        className={`flex max-w-[85%] sm:max-w-[78%] flex-col ${
+        className={`flex max-w-[88%] sm:max-w-[80%] md:max-w-[76%] flex-col ${
           isUser ? "items-end" : "items-start"
         }`}
       >
         <div
-          className={`relative rounded-2xl p-3 sm:p-3.5 text-xs sm:text-sm leading-relaxed transition-all ${
+          className={`relative rounded-2xl px-4 py-3 sm:py-3.5 text-xs sm:text-sm leading-relaxed transition-all ${
             isUser
-              ? `bg-[#1769D2] text-white shadow-2xs ${
+              ? `bg-[#202124] text-white shadow-2xs ${
                   isLastInGroup ? "rounded-tr-xs" : ""
                 }`
-              : `bg-[#F1F5F9] text-[#142D50] border border-[#E2E8F0]/80 shadow-2xs ${
+              : `bg-[#F5F6F7] text-[#202124] border border-[#E5E7EB]/80 shadow-2xs ${
                   isFirstInGroup ? "rounded-tl-xs" : ""
                 }`
           }`}
         >
-          {/* Message Content: Rich Markdown for Assistant, Plain Text for User */}
+          {/* Message Text Content */}
           {isUser ? (
             <p className="whitespace-pre-wrap font-medium">{message.content}</p>
           ) : (
             <MarkdownContent content={message.content} />
           )}
 
-          {/* ── Grounded Institutional Document Sources (Deduplicated & Clean) ── */}
+          {/* ── Verified Document Citations ── */}
           {!isUser && message.sources && message.sources.length > 0 && (() => {
-            // Deduplicate by document_title or document_id so multiple chunks from the same document are grouped
-            const uniqueSources = message.sources.reduce((acc: typeof message.sources, current) => {
+            // Deduplicate by document_title / question
+            const uniqueSources = message.sources.reduce((acc: ChatSource[], current) => {
               const identifier = current.document_title || current.document_id || current.question || current.faq_id;
               if (identifier && !acc.some((item) => (item.document_title || item.document_id || item.question || item.faq_id) === identifier)) {
                 acc.push(current);
@@ -110,118 +106,79 @@ export const KioskChatMessage: React.FC<KioskChatMessageProps> = ({
             }, []);
 
             return (
-              <div className="mt-2.5 space-y-1.5">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] flex items-center gap-1">
-                  <FileText className="h-3 w-3 text-[#1769D2]" />
+              <div className="mt-3 pt-2.5 border-t border-[#E5E7EB] space-y-1.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#6B7280] flex items-center gap-1">
+                  <FileText className="h-3 w-3 text-[#ED1C24]" />
                   <span>Verified Source Material:</span>
                 </span>
-                {uniqueSources.map((src, i) => {
-                  const displayTitle =
-                    src.document_title ||
-                    src.question ||
-                    "APIIT Institutional Reference";
-                  const pageInfo = src.page_number ? ` • Page ${src.page_number}` : "";
+                <div className="flex flex-wrap gap-1.5">
+                  {uniqueSources.map((src, i) => {
+                    const displayTitle =
+                      src.document_title ||
+                      (src.question ? `FAQ: ${src.question}` : "Institutional Policy");
+                    const pageText = src.page_number ? ` • Pg ${src.page_number}` : "";
 
-                  return (
-                    <button
-                      key={src.document_id || src.faq_id || i}
-                      type="button"
-                      onClick={() => onOpenSource && onOpenSource(src)}
-                      className="flex w-full items-center justify-between gap-2 rounded-xl border border-blue-200/90 bg-white px-3 py-2 text-left shadow-2xs hover:border-[#1769D2] hover:bg-blue-50/50 transition-all active:scale-[0.99] group"
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#1769D2]">
-                          <FileText className="h-3.5 w-3.5" />
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-xs font-bold text-[#142D50] group-hover:text-[#1769D2] transition-colors truncate">
-                            {displayTitle}
-                          </span>
-                          {pageInfo && (
-                            <span className="text-[10px] font-medium text-[#64748B]">
-                              Official Institutional Record{pageInfo}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-[#1769D2] shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                    </button>
-                  );
-                })}
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => onOpenSource?.(src)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-white hover:bg-[#FEECEE] border border-[#E5E7EB] hover:border-[#ED1C24]/40 px-2 py-1 text-[11px] font-medium text-[#202124] transition text-left active:scale-95 shadow-2xs max-w-full truncate"
+                        title="Click to view verified source reference"
+                      >
+                        <FileText className="h-3 w-3 text-[#ED1C24] shrink-0" />
+                        <span className="truncate max-w-[200px] sm:max-w-[280px]">
+                          {displayTitle}{pageText}
+                        </span>
+                        <ChevronRight className="h-3 w-3 text-[#6B7280] shrink-0" />
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             );
           })()}
+        </div>
 
-          {/* Fallback Notice Alert */}
-          {!isUser && message.fallback && (
-            <div className="mt-2.5 flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50/80 p-2 text-xs text-amber-900 leading-snug">
-              <AlertCircle className="h-3.5 w-3.5 shrink-0 text-amber-600 mt-0.5" />
-              <span>
-                Campus Desk notice: verified record not found. Please verify with campus administration.
-              </span>
-            </div>
-          )}
+        {/* ── Meta Footer: Timestamp & Action Controls ── */}
+        <div
+          className={`flex items-center gap-2 px-1 mt-1 text-[10px] sm:text-[11px] text-[#6B7280] ${
+            isUser ? "justify-end" : "justify-start"
+          }`}
+        >
+          <span>{formattedTime}</span>
 
-          {/* Assistant Action Tools: Audio Replay & Copy */}
+          {/* Assistant Action Buttons */}
           {!isUser && (
-            <div className="mt-2 flex items-center justify-end gap-1.5 border-t border-slate-200/60 pt-1.5">
+            <div className="flex items-center gap-1 ml-1 opacity-70 hover:opacity-100 transition">
               {onReplay && (
                 <button
                   type="button"
                   onClick={() => onReplay(message.content)}
-                  title="Listen aloud"
-                  className="flex items-center gap-1 text-[10px] font-bold text-[#64748B] hover:text-[#1769D2] hover:bg-white px-1.5 py-0.5 rounded transition"
+                  title="Replay speech aloud"
+                  aria-label="Replay speech aloud"
+                  className="p-1 rounded-md hover:bg-slate-100 text-[#6B7280] hover:text-[#ED1C24] transition"
                 >
                   <Volume2 className="h-3 w-3" />
-                  <span>Listen</span>
                 </button>
               )}
-
               <button
                 type="button"
                 onClick={handleCopy}
-                title="Copy response"
-                className="flex items-center gap-1 text-[10px] font-bold text-[#64748B] hover:text-[#1769D2] hover:bg-white px-1.5 py-0.5 rounded transition"
+                title="Copy text"
+                aria-label="Copy text"
+                className="p-1 rounded-md hover:bg-slate-100 text-[#6B7280] hover:text-[#202124] transition"
               >
                 {copied ? (
-                  <>
-                    <Check className="h-3 w-3 text-emerald-600" />
-                    <span className="text-emerald-600">Copied</span>
-                  </>
+                  <Check className="h-3 w-3 text-[#34EBAE]" />
                 ) : (
-                  <>
-                    <Copy className="h-3 w-3" />
-                    <span>Copy</span>
-                  </>
+                  <Copy className="h-3 w-3" />
                 )}
               </button>
             </div>
           )}
         </div>
-
-        {/* ── Timestamp & Double Checkmarks ✓✓ ── */}
-        <div
-          className={`flex items-center gap-1 px-1 mt-1 text-[10px] font-medium ${
-            isUser ? "text-slate-500 justify-end" : "text-slate-500 justify-start"
-          }`}
-        >
-          <span>{formattedTime}</span>
-          <CheckCheck className="h-3 w-3 text-[#1769D2]" />
-        </div>
       </div>
-
-      {/* ── Right: User Avatar Badge ── */}
-      {isUser && (
-        <div className="w-8 sm:w-9 shrink-0 flex justify-center pt-0.5">
-          {isFirstInGroup ? (
-            <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full bg-[#1769D2] text-white shadow-2xs ring-2 ring-white">
-              <User className="h-4 w-4" />
-            </div>
-          ) : (
-            <div className="w-8 sm:w-9" />
-          )}
-        </div>
-      )}
     </div>
   );
 };

@@ -42,8 +42,15 @@ export const useChat = () => {
       avatar_gender: avatarGender,
     };
 
+    const tStart = performance.now();
     try {
       const response = await sendChatMessage(payload);
+      const tElapsed = Math.round(performance.now() - tStart);
+      console.log(
+        `[Chat Latency] /api/chat round-trip: ${tElapsed}ms | Audio payload: ${
+          response.audio_base64 ? `${Math.round(response.audio_base64.length / 1024)} KB` : "None (browser voice)"
+        }`
+      );
 
       setSessionId(response.session_id);
 

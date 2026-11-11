@@ -27,7 +27,7 @@ export const AssistantAvatarBadge: React.FC<AssistantAvatarBadgeProps> = ({
 
   return (
     <div
-      className={`relative shrink-0 overflow-hidden rounded-full ring-2 ring-white/90 shadow-xs bg-[#e2f0fd] flex items-center justify-center ${sizeClass} ${className}`}
+      className={`relative shrink-0 overflow-hidden rounded-full ring-2 ring-[#E5E7EB] shadow-xs bg-[#F5F6F7] flex items-center justify-center ${sizeClass} ${className}`}
     >
       {isSophia ? (
         // Sophia: Warm, professional female assistant portrait
@@ -76,19 +76,21 @@ export const AssistantAvatarBadge: React.FC<AssistantAvatarBadgeProps> = ({
           <path d="M38 65 L44 76 L48 65 Z" fill="#F1F5F9" />
           <path d="M62 65 L56 76 L52 65 Z" fill="#F1F5F9" />
 
-          {/* University Navy Blazer */}
+          {/* University Formal Charcoal Blazer with Red Trim */}
           <path
             d="M20 100 L24 74 C26 69 32 67 38 67 L45 78 L50 94 L55 78 L62 67 C68 67 74 69 76 74 L80 100 Z"
-            fill="#1565C0"
+            fill="#202124"
           />
           {/* Blazer Lapels */}
-          <path d="M35 67 L46 84 L38 100 L23 100 Z" fill="#0D47A1" />
-          <path d="M65 67 L54 84 L62 100 L77 100 Z" fill="#0D47A1" />
+          <path d="M35 67 L46 84 L38 100 L23 100 Z" fill="#0F172A" />
+          <path d="M65 67 L54 84 L62 100 L77 100 Z" fill="#0F172A" />
+          {/* Subtle APIIT Red Inner Collar Accent */}
+          <path d="M41 68 L50 79 L59 68 Z" fill="#ED1C24" />
 
           <defs>
             <linearGradient id="sophia_bg" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#90CAF9" />
-              <stop offset="1" stopColor="#E3F2FD" />
+              <stop stopColor="#FEECEE" />
+              <stop offset="1" stopColor="#F5F6F7" />
             </linearGradient>
           </defs>
         </svg>
@@ -132,24 +134,23 @@ export const AssistantAvatarBadge: React.FC<AssistantAvatarBadgeProps> = ({
           {/* Confident Smile */}
           <path d="M44 49 C47 52 53 52 56 49" stroke="#993D3D" strokeWidth="1.8" strokeLinecap="round" />
 
-          {/* Formal Shirt & University Tie */}
+          {/* Formal Shirt & APIIT Red University Tie */}
           <path d="M42 64 L50 76 L58 64 Z" fill="#FFFFFF" />
-          {/* Teal / Cyan University Tie */}
-          <path d="M48 68 L52 68 L54 84 L50 96 L46 84 Z" fill="#00897B" />
-          <path d="M48 66 L52 66 L53 70 L47 70 Z" fill="#00695C" />
+          <path d="M48 68 L52 68 L54 84 L50 96 L46 84 Z" fill="#ED1C24" />
+          <path d="M48 66 L52 66 L53 70 L47 70 Z" fill="#D91920" />
 
           {/* Dark Business Suit */}
           <path
             d="M20 100 L24 73 C26 68 32 66 38 66 L46 76 L50 94 L54 76 L62 66 C68 66 74 68 76 73 L80 100 Z"
-            fill="#1E293B"
+            fill="#202124"
           />
           <path d="M35 66 L46 84 L38 100 L23 100 Z" fill="#0F172A" />
           <path d="M65 66 L54 84 L62 100 L77 100 Z" fill="#0F172A" />
 
           <defs>
             <linearGradient id="alex_bg" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#93C5FD" />
-              <stop offset="1" stopColor="#E0F2FE" />
+              <stop stopColor="#F5F6F7" />
+              <stop offset="1" stopColor="#E5E7EB" />
             </linearGradient>
           </defs>
         </svg>

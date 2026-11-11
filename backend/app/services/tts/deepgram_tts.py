@@ -1,7 +1,9 @@
 import asyncio
+import base64
 import json
 import logging
 import os
+import time
 import urllib.parse
 import websockets
 from app.services.tts.base import BaseTTSProvider
@@ -35,9 +37,9 @@ class DeepgramTTSProvider(BaseTTSProvider):
         self,
         api_key: str | None = None,
         model: str | None = None,
-        sample_rate: int = 48000,
+        sample_rate: int = 24000,
         encoding: str = "linear16",
-        timeout_seconds: float = 12.0,
+        timeout_seconds: float = 30.0,
     ):
         self.api_key = api_key or os.getenv("DEEPGRAM_API_KEY", "").strip()
         self.default_model = model or os.getenv("DEEPGRAM_TTS_MODEL", DEFAULT_FEMALE_MODEL)
@@ -80,22 +82,63 @@ class DeepgramTTSProvider(BaseTTSProvider):
 
         model = self._select_model(voice_persona)
 
-        # Attempt synthesis with primary model, then with Aura 1 fallback if needed
+        # 1. Attempt synthesis via real-time WebSocket stream
         audio_url = await self._stream_synthesize(clean_text, model, api_key)
         if audio_url:
             return audio_url
 
-        # If Aura-2 model was requested and failed, try Aura-1 fallback
+        # 2. If WebSocket fails or times out, immediately fall back to Deepgram HTTP REST
+        logger.info("Deepgram WebSocket stream incomplete, attempting HTTP REST fallback...")
+        audio_url = await self._rest_synthesize(clean_text, model, api_key)
+        if audio_url:
+            return audio_url
+
+        # 3. If Aura-2 model failed, try Aura-1 via HTTP REST
         if "aura-2" in model:
             fallback_model = (
                 AURA1_MALE_MODEL if voice_persona.lower() in ("male", "puck") else AURA1_FEMALE_MODEL
             )
-            logger.info("Attempting Deepgram fallback model '%s'...", fallback_model)
-            audio_url = await self._stream_synthesize(clean_text, fallback_model, api_key)
+            logger.info("Attempting Deepgram fallback model '%s' via REST...", fallback_model)
+            audio_url = await self._rest_synthesize(clean_text, fallback_model, api_key)
             if audio_url:
                 return audio_url
 
         return None
+
+    async def _rest_synthesize(
+        self,
+        text: str,
+        model: str,
+        api_key: str,
+    ) -> str | None:
+        """Direct, highly reliable HTTP REST fallback to Deepgram /v1/speak."""
+        try:
+            import httpx
+            t0 = time.perf_counter()
+            url = f"https://api.deepgram.com/v1/speak?model={model}&container=wav&encoding=linear16&sample_rate={self.sample_rate}"
+            headers = {
+                "Authorization": f"Token {api_key}",
+                "Content-Type": "application/json",
+            }
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(url, headers=headers, json={"text": text})
+                if resp.status_code == 200 and len(resp.content) > 100:
+                    b64 = base64.b64encode(resp.content).decode("utf-8")
+                    duration = time.perf_counter() - t0
+                    logger.info(
+                        "Deepgram REST generated audio successfully: model='%s', bytes=%d, duration=%.3fs",
+                        model,
+                        len(resp.content),
+                        duration,
+                    )
+                    return f"data:audio/wav;base64,{b64}"
+                else:
+                    logger.warning("Deepgram REST returned status %s: %s", resp.status_code, resp.text[:100])
+                    return None
+        except Exception as exc:
+            clean_err = str(exc).replace(api_key, "***") if api_key else str(exc)
+            logger.error("Deepgram REST fallback failed: %s", clean_err)
+            return None
 
     async def _stream_synthesize(
         self,
@@ -104,6 +147,7 @@ class DeepgramTTSProvider(BaseTTSProvider):
         api_key: str,
     ) -> str | None:
         """Internal helper to stream from Deepgram WebSocket."""
+        t0 = time.perf_counter()
         query_params = {
             "model": model,
             "encoding": self.encoding,
@@ -173,11 +217,13 @@ class DeepgramTTSProvider(BaseTTSProvider):
             wav_bytes = self.pcm_to_wav(total_pcm, sample_rate=self.sample_rate)
             data_url = self.bytes_to_wav_data_url(wav_bytes)
 
+            duration = time.perf_counter() - t0
             logger.info(
-                "Deepgram TTS successfully generated audio: model='%s', bytes=%d, rate=%dHz",
+                "Deepgram TTS successfully generated audio: model='%s', bytes=%d, rate=%dHz, duration=%.3fs",
                 model,
                 len(wav_bytes),
                 self.sample_rate,
+                duration,
             )
             return data_url
 

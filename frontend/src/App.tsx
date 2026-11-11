@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { User, Hand } from "lucide-react";
 import KioskLayout from "./components/layout/KioskLayout";
 import KioskHeader from "./features/chat/components/KioskHeader";
-import AssistantStatusBar from "./features/chat/components/AssistantStatusBar";
 import KioskChatOverlay from "./features/chat/components/KioskChatOverlay";
-import KioskBottomNav from "./features/chat/components/KioskBottomNav";
 import FaqShortcutsDrawer from "./features/chat/components/FaqShortcutsDrawer";
-import AvatarStage, { type AvatarAgentState } from "./features/avatar/components/AvatarStage";
+import KioskAssistantPane from "./features/avatar/components/KioskAssistantPane";
+import type { AvatarAgentState } from "./features/avatar/components/AvatarStage";
 
 import { useChat } from "./features/chat/hooks/useChat";
 import { useSpeechRecognition } from "./features/chat/hooks/useSpeechRecognition";
@@ -42,7 +40,7 @@ export const App = () => {
     isSupported: isSpeechSupported,
   } = useSpeechSynthesis(selectedAvatar);
 
-  // 3. Neural Audio Hook (Gemini native neural speech)
+  // 3. Neural Audio Hook (Gemini native neural speech & Deepgram)
   const { playNeuralAudio, stopNeuralAudio, isAudioPlaying } = useNeuralAudio();
 
   // 4. STT hook with barge-in callback
@@ -208,148 +206,77 @@ export const App = () => {
   return (
     <KioskLayout>
       {/* ─────────────────────────────────────────────────────────────
-          1. TOP UNIVERSITY HEADER CARD
-          [🎓] NORTHSTAR UNIVERSITY             [ 🌐 EN ▾ | ♿ | ⛶ ]
-               VIRTUAL INFORMATION KIOSK
+          1. INTEGRATED APIIT UNIVERSITY KIOSK HEADER
+          Official Logo • Title • Availability • Quick Actions
          ───────────────────────────────────────────────────────────── */}
       <KioskHeader
         onResetSession={handleResetSession}
         onToggleShortcuts={() => setIsShortcutsOpen(true)}
         voiceEnabled={voiceResponsesEnabled}
         onToggleVoice={handleToggleVoiceResponses}
-      />
-
-      {/* ─────────────────────────────────────────────────────────────
-          2. VIRTUAL ASSISTANT STATUS BAR CARD
-          [ 💬 ] VIRTUAL ASSISTANT               ● Available
-                 How can we help you?
-         ───────────────────────────────────────────────────────────── */}
-      <AssistantStatusBar
-        assistantName={assistantName}
+        selectedAvatar={selectedAvatar}
+        onAvatarChange={handleAvatarChange}
         avatarState={avatarState}
         isOnline={true}
+        onTriggerWave={handleTriggerWave}
+        isWaving={isWaving}
+        isLoading={isLoading}
       />
 
       {/* ─────────────────────────────────────────────────────────────
-          3. UNIFIED KIOSK WORKSPACE: AVATAR & CHAT COMBINED INTO ONE
-          Single seamless rounded enclosure combining the 3D Virtual
-          Assistant on the left and the Interactive Conversation on the right.
+          2. SINGLE UNIFIED KIOSK SURFACE: AVATAR & CONVERSATION
+          Both sections live seamlessly on the same pure white canvas.
+          No individual card containers, no heavy borders, no separated boxes.
          ───────────────────────────────────────────────────────────── */}
-      <main className="relative flex flex-1 min-h-0 w-full flex-col rounded-3xl border border-[#E2E8F0] bg-white shadow-xs overflow-hidden">
-        <div className="relative flex flex-1 min-h-0 flex-col md:grid md:grid-cols-12 overflow-hidden w-full">
-          {/* LEFT PANE: 3D Avatar Character Concierge (Desktop & Tablet: 5 cols) */}
-          <section
-            aria-label="3D Virtual Assistant Concierge"
-            className="relative flex flex-col justify-between items-center p-3.5 sm:p-5 md:p-6 md:border-r border-b md:border-b-0 border-[#E2E8F0] md:col-span-5 h-[36vh] sm:h-[40vh] md:h-full min-h-[250px] w-full overflow-hidden bg-gradient-to-b from-[#F8FAFC] to-white"
-          >
-            {/* Top Controls: Persona Switcher & Wave Greeting */}
-            <div className="relative z-20 flex w-full items-center justify-between shrink-0 gap-2">
-              {/* Persona Switcher Pill */}
-              <div className="inline-flex items-center rounded-full border border-[#E2E8F0] bg-white p-1 gap-1 shadow-2xs">
-                <button
-                  type="button"
-                  disabled={isLoading}
-                  onClick={() => handleAvatarChange("male")}
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-all duration-200 ${selectedAvatar === "male"
-                    ? "bg-[#1769D2] text-white font-bold shadow-2xs"
-                    : "text-[#142D50] hover:bg-slate-100 font-semibold"
-                    }`}
-                >
-                  <User className="h-3.5 w-3.5" />
-                  <span>Alex</span>
-                </button>
+      <main className="relative flex flex-1 min-h-0 w-full flex-col md:grid md:grid-cols-12 overflow-hidden bg-white">
+        {/* LEFT PANE: 3D Virtual Concierge (Desktop & Tablet: 5 cols) */}
+        <section
+          aria-label="3D Virtual Admissions Concierge"
+          className="relative flex flex-col justify-between items-center h-[34vh] sm:h-[38vh] md:h-full min-h-[220px] sm:min-h-[260px] md:min-h-0 w-full overflow-hidden md:col-span-5 border-b md:border-b-0 md:border-r border-[#E5E7EB]/50"
+        >
+          <KioskAssistantPane
+            gender={selectedAvatar}
+            state={avatarState}
+            assistantName={assistantName}
+            assistantRole={assistantRole}
+            isLoading={isLoading}
+            isWaving={isWaving}
+            onAvatarChange={handleAvatarChange}
+            onTriggerWave={handleTriggerWave}
+            isListening={isListening}
+          />
+        </section>
 
-                <button
-                  type="button"
-                  disabled={isLoading}
-                  onClick={() => handleAvatarChange("female")}
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs transition-all duration-200 ${selectedAvatar === "female"
-                    ? "bg-[#1769D2] text-white font-bold shadow-2xs"
-                    : "text-[#142D50] hover:bg-slate-100 font-semibold"
-                    }`}
-                >
-                  <User className="h-3.5 w-3.5" />
-                  <span>Sophia</span>
-                </button>
-              </div>
-
-              {/* Interactive Wave Greet Action Button */}
-              <button
-                type="button"
-                disabled={isLoading || isWaving}
-                onClick={handleTriggerWave}
-                title="Make assistant wave and greet you"
-                className="flex items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-white px-3 py-1 text-xs font-bold text-[#1769D2] shadow-2xs hover:border-blue-300 hover:bg-blue-50 transition active:scale-95"
-              >
-                <Hand className="h-3.5 w-3.5 text-[#1769D2]" />
-                <span>Say Hello</span>
-              </button>
-            </div>
-
-            {/* Central 3D Avatar Viewport with Life-Sized Waist-Up Framing */}
-            <div className="relative flex-1 w-full h-full min-h-[200px] sm:min-h-[250px] md:min-h-[320px] my-auto py-1 flex items-center justify-center overflow-hidden">
-              <AvatarStage
-                gender={selectedAvatar}
-                state={avatarState}
-              />
-            </div>
-
-            {/* Bottom Persona Identity Tag */}
-            <div className="relative z-10 shrink-0 text-center">
-              <p className="text-[11px] sm:text-xs font-bold text-[#142D50]">
-                {assistantName} • <span className="text-[#64748B] font-semibold">{assistantRole}</span>
-              </p>
-            </div>
-          </section>
-
-          {/* RIGHT PANE: Dedicated Conversation & Touch Input (Desktop & Tablet: 7 cols) */}
-          <section
-            aria-label="Conversation and Touch Input"
-            className="relative flex flex-1 min-h-0 flex-col md:col-span-7 h-full w-full overflow-hidden bg-white"
-          >
-            <KioskChatOverlay
-              messages={messages}
-              isLoading={isLoading}
-              selectedAvatar={selectedAvatar}
-              interimTranscript={interimTranscript}
-              onReplayMessage={handleReplayMessage}
-              onClearConversation={handleResetSession}
-              onSendMessage={handleSendMessage}
-              onToggleVoice={handleVoiceButtonClick}
-              isListening={isListening}
-              speechError={speechRecognitionError || error}
-            />
-          </section>
-        </div>
+        {/* RIGHT PANE: Interactive Conversation & Touch Input (Desktop & Tablet: 7 cols) */}
+        <section
+          aria-label="Admissions Conversation and Touch Input"
+          className="relative flex flex-1 min-h-0 flex-col md:col-span-7 h-full w-full overflow-hidden bg-white"
+        >
+          <KioskChatOverlay
+            messages={messages}
+            isLoading={isLoading}
+            selectedAvatar={selectedAvatar}
+            interimTranscript={interimTranscript}
+            onSelectSuggestion={(q) => handleSendMessage(q)}
+            onReplayMessage={handleReplayMessage}
+            onClearConversation={handleResetSession}
+            onSendMessage={handleSendMessage}
+            onToggleVoice={handleVoiceButtonClick}
+            isListening={isListening}
+            speechError={speechRecognitionError || error}
+          />
+        </section>
       </main>
 
       {/* ─────────────────────────────────────────────────────────────
-          4. FLOATING BOTTOM NAVIGATION DOCK
-          [ (⌂ Home) | ⊞ Categories | ılı Voice | ⟲ Reset | ⚙ Settings ]
-         ───────────────────────────────────────────────────────────── */}
-      <KioskBottomNav
-        activeTab="home"
-        onHome={() => {
-          if (messages.length > 0) {
-            handleResetSession();
-          }
-        }}
-        onCategories={() => setIsShortcutsOpen(true)}
-        voiceEnabled={voiceResponsesEnabled}
-        onToggleVoice={handleToggleVoiceResponses}
-        onReset={handleResetSession}
-        onSettings={() => setIsShortcutsOpen(true)}
-      />
-
-      {/* ─────────────────────────────────────────────────────────────
-          5. SUGGESTED FAQ TOPICS DRAWER
+          3. UNIVERSITY FAQ DIRECTORY MODAL
          ───────────────────────────────────────────────────────────── */}
       <FaqShortcutsDrawer
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}
         onSelectQuestion={(q) => {
           cancelSpeech();
-          sendMessage(q);
+          handleSendMessage(q);
         }}
       />
     </KioskLayout>
