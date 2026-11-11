@@ -63,11 +63,13 @@ export function prepareSpeechText(text: string): string {
   // =========================================================================
 
   // A. Institution Name: Pronounce "APIIT" as "App-it" (short, natural form)
-  cleaned = cleaned.replace(/\bAPIIT\b/g, "App-it");
+  cleaned = cleaned.replace(/\bAPIIT\b/gi, "App-it");
 
-  // B. Examinations: Prevent "slash" from being spoken aloud
+  // B. Examinations: Catch all variations (A/Levels, A/Level, A/Ls, A/L, GCE A/L)
+  cleaned = cleaned.replace(/\bA\/Levels?\b/gi, "A Levels");
   cleaned = cleaned.replace(/\bA\/Ls\b/gi, "A Levels");
   cleaned = cleaned.replace(/\bA\/L\b/gi, "A Level");
+  cleaned = cleaned.replace(/\bO\/Levels?\b/gi, "O Levels");
   cleaned = cleaned.replace(/\bO\/Ls\b/gi, "O Levels");
   cleaned = cleaned.replace(/\bO\/L\b/gi, "O Level");
 

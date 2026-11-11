@@ -539,9 +539,12 @@ def process_chat_message(
             "category": faq["category"],
             "similarity": faq["similarity"],
         })
-    # Map voice persona based on request
-    voice_name = "Puck" if avatar_gender == "male" else "Kore"
-    audio_base64 = generate_neural_speech(answer, voice_persona=voice_name)
+    # Synthesize audio using configurable TTS Manager (Gemini Racing / Deepgram Aura / Browser fallback)
+    from app.services.tts.tts_manager import get_tts_manager
+    audio_base64 = get_tts_manager().synthesize_speech(
+        text=answer,
+        voice_gender=avatar_gender,
+    )
     return {
         "session_id": session.id,
         "answer": answer,
@@ -551,64 +554,10 @@ def process_chat_message(
         "created_at": assistant_record.created_at,
     }
 
-TTS_MODEL = os.getenv("GEMINI_TTS_MODEL", "gemini-3.8-flash-tts")
 
-
-def generate_neural_speech(text: str, voice_persona: str = "Puck") -> str | None:
+def generate_neural_speech(text: str, voice_persona: str = "female") -> str | None:
     """
-    Generate high-fidelity neural audio using Gemini TTS (gemini-3.8-flash-tts).
-    Voices:
-      - 'Puck' / 'Charon' (Male - Alex)
-      - 'Kore' / 'Aoede' (Female - Sophia)
-    Returns Base64-encoded WAV audio data URL, or None if unavailable.
+    Backward-compatible wrapper delegating to TTSManager.
     """
-    try:
-        # Pre-clean phonetic terms so Gemini speaks natural Sri Lankan institutional English
-        phonetic_text = (
-            text.replace("APIIT", "App-it")
-            .replace("A/Ls", "A Levels")
-            .replace("A/L", "A Level")
-            .replace("O/Ls", "O Levels")
-            .replace("O/L", "O Level")
-            .replace("BSc (Hons)", "B.S.C. Honours")
-            .replace("BEng (Hons)", "B.Eng. Honours")
-            .replace("BSc", "B.S.C.")
-            .replace("BEng", "B.Eng.")
-            .replace("LKR", "Sri Lankan Rupees")
-        )
-
-        # Truncate to first 300 words if necessary to keep voice synthesis snappy
-        words = phonetic_text.split()
-        if len(words) > 300:
-            phonetic_text = " ".join(words[:300])
-
-        # Pass ONLY the clean spoken text directly to the TTS model (no meta-instructions)
-        response = client.models.generate_content(
-            model=TTS_MODEL,
-            contents=phonetic_text,
-            config=types.GenerateContentConfig(
-                response_modalities=["AUDIO"],
-                speech_config=types.SpeechConfig(
-                    voice_config=types.VoiceConfig(
-                        prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                            voice_name=voice_persona
-                        )
-                    )
-                ),
-            ),
-        )
-
-        for candidate in (response.candidates or []):
-            if candidate.content and candidate.content.parts:
-                for part in candidate.content.parts:
-                    if getattr(part, "inline_data", None) and part.inline_data.data:
-                        raw_bytes = part.inline_data.data
-                        mime = part.inline_data.mime_type or "audio/wav"
-                        b64 = base64.b64encode(raw_bytes).decode("utf-8")
-                        return f"data:{mime};base64,{b64}"
-
-    except Exception as exc:
-        logger.warning("Neural audio synthesis skipped (falling back to client voice): %s", exc)
-        return None
-
-    return None
+    from app.services.tts.tts_manager import get_tts_manager
+    return get_tts_manager().synthesize_speech(text=text, voice_gender=voice_persona)
