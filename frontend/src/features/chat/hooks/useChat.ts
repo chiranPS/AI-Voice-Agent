@@ -40,6 +40,7 @@ export const useChat = () => {
       session_id: sessionId,
       message: trimmedMessage,
       avatar_gender: avatarGender,
+      stream_audio: true,
     };
 
     const tStart = performance.now();

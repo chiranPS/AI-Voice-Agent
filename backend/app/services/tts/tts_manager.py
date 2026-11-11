@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import time
+from typing import AsyncGenerator
 from app.services.tts.base import BaseTTSProvider
 from app.services.tts.gemini_tts import GeminiTTSProvider
 from app.services.tts.deepgram_tts import DeepgramTTSProvider
@@ -77,6 +78,62 @@ class TTSManager:
             cleaned = " ".join(words[:300])
 
         return cleaned.strip()
+
+    async def stream_speech(
+        self,
+        text: str,
+        voice_gender: str = "female",
+    ) -> AsyncGenerator[bytes, None]:
+        """
+        Streams raw linear16 PCM audio chunks (24000 Hz, mono) progressively.
+        Uses Deepgram Aura 2 WebSocket TTS as primary provider and Gemini TTS as fallback.
+        Yields chunks as they arrive for low-latency streaming audio playback.
+        """
+        clean_text = self.sanitize_text_for_speech(text)
+        if not clean_text:
+            return
+
+        configured_provider = os.getenv("TTS_PROVIDER", "parallel").strip().lower()
+        if configured_provider in ("none", "off", "browser"):
+            logger.info("TTS streaming disabled by TTS_PROVIDER='%s'", configured_provider)
+            return
+
+        # 1. Primary: Deepgram Aura 2 WebSocket streaming (low latency, high naturalness)
+        if configured_provider != "gemini":
+            chunk_count = 0
+            try:
+                logger.info("Starting progressive audio stream via Deepgram Aura (voice: %s)...", voice_gender)
+                async for chunk in self.deepgram_provider.stream_audio_chunks(clean_text, voice_gender):
+                    chunk_count += 1
+                    yield chunk
+
+                if chunk_count > 0:
+                    logger.info("Deepgram streaming completed successfully (%d chunks).", chunk_count)
+                    return
+            except asyncio.CancelledError:
+                logger.info("Deepgram speech streaming cancelled by caller.")
+                raise
+            except Exception as exc:
+                logger.warning("Deepgram streaming failed (%s). Falling back to Gemini stream...", exc)
+
+        # 2. Fallback: Gemini Neural TTS streaming
+        try:
+            logger.info("Attempting Gemini streaming fallback (voice: %s)...", voice_gender)
+            chunk_count = 0
+            async for chunk in self.gemini_provider.stream_audio_chunks(clean_text, voice_gender):
+                chunk_count += 1
+                yield chunk
+
+            if chunk_count > 0:
+                logger.info("Gemini streaming completed successfully (%d chunks).", chunk_count)
+                return
+        except asyncio.CancelledError:
+            logger.info("Gemini speech streaming cancelled by caller.")
+            raise
+        except Exception as exc:
+            logger.error("Gemini streaming fallback failed: %s", exc)
+
+        logger.warning("All streaming TTS providers yielded no chunks.")
 
     async def _async_synthesize(
         self,

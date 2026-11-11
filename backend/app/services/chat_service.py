@@ -342,6 +342,7 @@ def process_chat_message(
     session_id: uuid.UUID | None,
     user_message: str,
     avatar_gender: str = "female",
+    stream_audio: bool = True,
 ) -> dict:
     """
     Main entry point for processing a chat message:
@@ -485,12 +486,14 @@ def process_chat_message(
             "category": faq["category"],
             "similarity": faq["similarity"],
         })
-    # Synthesize audio using configurable TTS Manager (Gemini Racing / Deepgram Aura / Browser fallback)
-    from app.services.tts.tts_manager import get_tts_manager
-    audio_base64 = get_tts_manager().synthesize_speech(
-        text=answer,
-        voice_gender=avatar_gender,
-    )
+    # Synthesize audio if not delegating to WebSocket audio streaming
+    audio_base64 = None
+    if not stream_audio:
+        from app.services.tts.tts_manager import get_tts_manager
+        audio_base64 = get_tts_manager().synthesize_speech(
+            text=answer,
+            voice_gender=avatar_gender,
+        )
     return {
         "session_id": session.id,
         "answer": answer,

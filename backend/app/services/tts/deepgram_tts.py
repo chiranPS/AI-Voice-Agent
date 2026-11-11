@@ -5,6 +5,7 @@ import logging
 import os
 import time
 import urllib.parse
+from typing import AsyncGenerator
 import websockets
 from app.services.tts.base import BaseTTSProvider
 
@@ -56,6 +57,96 @@ class DeepgramTTSProvider(BaseTTSProvider):
         if persona in ("male", "puck", "orion", "zeus"):
             return DEFAULT_MALE_MODEL
         return self.default_model
+
+    async def stream_audio_chunks(
+        self,
+        text: str,
+        voice_persona: str = "female",
+    ) -> AsyncGenerator[bytes, None]:
+        """
+        Connects to Deepgram Streaming TTS WebSocket and yields binary
+        linear16 PCM chunks immediately as they arrive.
+        Does not buffer the full response; streams progressive speech with sub-second TTFB.
+        """
+        api_key = self.api_key or os.getenv("DEEPGRAM_API_KEY", "").strip()
+        if not api_key:
+            logger.warning("Deepgram streaming skipped: DEEPGRAM_API_KEY is not configured.")
+            return
+
+        clean_text = (text or "").strip()
+        if not clean_text:
+            return
+
+        if len(clean_text) > 1800:
+            clean_text = clean_text[:1800]
+
+        model = self._select_model(voice_persona)
+        query_params = {
+            "model": model,
+            "encoding": self.encoding,
+            "sample_rate": str(self.sample_rate),
+        }
+        query_string = urllib.parse.urlencode(query_params)
+        ws_url = f"wss://api.deepgram.com/v1/speak?{query_string}"
+        headers = {"Authorization": f"Token {api_key}"}
+
+        ws = None
+        try:
+            ws = await websockets.connect(
+                ws_url,
+                additional_headers=headers,
+                open_timeout=self.timeout_seconds,
+                close_timeout=3.0,
+            )
+            logger.debug("Connected to Deepgram TTS stream (model: %s, rate: %dHz)", model, self.sample_rate)
+
+            # Submit Speak command with text
+            await ws.send(json.dumps({"type": "Speak", "text": clean_text}))
+            # Signal Flush to begin rendering
+            await ws.send(json.dumps({"type": "Flush"}))
+
+            async for raw_message in ws:
+                if isinstance(raw_message, bytes):
+                    # Yield raw linear16 PCM audio frame immediately
+                    yield raw_message
+                elif isinstance(raw_message, str):
+                    try:
+                        data = json.loads(raw_message)
+                        msg_type = data.get("type")
+                        if msg_type == "Flushed":
+                            logger.debug("Deepgram stream received 'Flushed' confirmation.")
+                            break
+                        elif msg_type == "Error":
+                            logger.error("Deepgram stream error event: %s", data.get("error_msg"))
+                            break
+                        elif msg_type == "Warning":
+                            logger.warning("Deepgram stream warning: %s", data.get("warn_msg"))
+                    except json.JSONDecodeError:
+                        pass
+
+            try:
+                await ws.send(json.dumps({"type": "Close"}))
+            except Exception:
+                pass
+
+        except asyncio.CancelledError:
+            logger.info("Deepgram audio streaming cancelled by client barge-in.")
+            if ws:
+                try:
+                    await ws.send(json.dumps({"type": "Close"}))
+                    await ws.close()
+                except Exception:
+                    pass
+            raise
+        except Exception as exc:
+            clean_err = str(exc).replace(api_key, "***") if api_key else str(exc)
+            logger.error("Deepgram audio streaming failed: %s", clean_err)
+        finally:
+            if ws is not None:
+                try:
+                    await ws.close()
+                except Exception:
+                    pass
 
     async def generate_speech(
         self,

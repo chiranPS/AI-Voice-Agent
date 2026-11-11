@@ -2,6 +2,7 @@ import asyncio
 import os
 import time
 import logging
+from typing import AsyncGenerator
 from google.genai import types
 from app.services.chat_service import client
 from app.services.tts.base import BaseTTSProvider
@@ -44,6 +45,80 @@ class GeminiTTSProvider(BaseTTSProvider):
         if persona in ("male", "puck"):
             return "Puck"
         return "Kore"
+
+    async def stream_audio_chunks(
+        self,
+        text: str,
+        voice_persona: str = "female",
+    ) -> AsyncGenerator[bytes, None]:
+        """
+        Streams raw linear16 PCM audio chunks (24kHz mono) from candidate Gemini TTS models.
+        Tries candidates in priority order, handling 429 quota exhaustion gracefully.
+        """
+        clean_text = (text or "").strip()
+        if not clean_text:
+            return
+
+        voice_name = self._map_voice(voice_persona)
+
+        for model_name in self.models:
+            t0 = time.perf_counter()
+            chunks_yielded = 0
+            is_first_chunk = True
+
+            try:
+                logger.debug("Attempting Gemini audio stream with model: %s", model_name)
+                stream = await client.aio.models.generate_content_stream(
+                    model=model_name,
+                    contents=clean_text,
+                    config=types.GenerateContentConfig(
+                        response_modalities=["AUDIO"],
+                        speech_config=types.SpeechConfig(
+                            voice_config=types.VoiceConfig(
+                                prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                                    voice_name=voice_name
+                                )
+                            )
+                        ),
+                    ),
+                )
+
+                async for chunk in stream:
+                    if not chunk.candidates or not chunk.candidates[0].content:
+                        continue
+                    parts = chunk.candidates[0].content.parts or []
+                    for part in parts:
+                        inline = getattr(part, "inline_data", None)
+                        if inline and inline.data:
+                            raw_data = inline.data
+                            # If Gemini sends audio wrapped in WAV container, strip 44-byte RIFF header
+                            if is_first_chunk and raw_data.startswith(b"RIFF") and len(raw_data) > 44:
+                                raw_data = raw_data[44:]
+                            is_first_chunk = False
+
+                            if raw_data:
+                                chunks_yielded += 1
+                                yield raw_data
+
+                if chunks_yielded > 0:
+                    logger.info(
+                        "Gemini stream completed with model '%s': %d chunks in %.3fs",
+                        model_name,
+                        chunks_yielded,
+                        time.perf_counter() - t0,
+                    )
+                    return
+
+            except asyncio.CancelledError:
+                logger.info("Gemini audio stream cancelled by client barge-in.")
+                raise
+            except Exception as exc:
+                err_str = str(exc)
+                if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                    logger.warning("Gemini model '%s' quota exhausted (429). Trying next candidate...", model_name)
+                else:
+                    logger.warning("Gemini model '%s' stream failed: %s. Trying next candidate...", model_name, exc)
+                continue
 
     async def _generate_single_model_speech(
         self,

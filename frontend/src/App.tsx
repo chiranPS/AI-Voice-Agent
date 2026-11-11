@@ -12,6 +12,7 @@ import { useSpeechSynthesis } from "./features/chat/hooks/useSpeechSynthesis";
 import { prepareSpeechText } from "./utils/speechText";
 import type { AvatarType } from "./features/avatar/types/avatar.types";
 import { useNeuralAudio } from "./features/chat/hooks/useNeuralAudio";
+import { useStreamingAudio } from "./features/chat/hooks/useStreamingAudio";
 
 const INACTIVITY_TIMEOUT_MS = 90000; // 90 seconds auto-reset for public kiosk
 
@@ -32,7 +33,7 @@ export const App = () => {
     clearConversation,
   } = useChat();
 
-  // 2. Persona-aware TTS hook
+  // 2. Persona-aware TTS hook (client fallback)
   const {
     speak,
     cancel: cancelSpeech,
@@ -40,22 +41,46 @@ export const App = () => {
     isSupported: isSpeechSupported,
   } = useSpeechSynthesis(selectedAvatar);
 
-  // 3. Neural Audio Hook (Gemini native neural speech & Deepgram)
+  // 3. Fallback callback for WebSocket streaming
+  const handleStreamingFallback = useCallback(
+    (text: string, avatar: AvatarType) => {
+      if (isSpeechSupported) {
+        console.warn("[Audio Kiosk] Streaming unavailable, activating SpeechSynthesis fallback.");
+        const speechText = prepareSpeechText(text);
+        speak(speechText, avatar);
+      }
+    },
+    [isSpeechSupported, speak]
+  );
+
+  // 4. Real-time WebSocket Streaming Audio Hook (Deepgram Aura 2 / Gemini AudioWorklet)
+  const {
+    playStreamAudio,
+    stopAudio: stopStreamingAudio,
+    isAudioPlaying: isStreamingAudioPlaying,
+  } = useStreamingAudio({ onFallback: handleStreamingFallback });
+
+  // 5. Offline Neural Audio Hook (Gemini native neural speech & Deepgram complete WAV)
   const { playNeuralAudio, stopNeuralAudio, isAudioPlaying } = useNeuralAudio();
 
-  // 4. STT hook with barge-in callback
-  const handleBargeIn = useCallback(() => {
+  // Unified audio stop for instant interruption / barge-in
+  const stopAllAudio = useCallback(() => {
     cancelSpeech();
     stopNeuralAudio();
-  }, [cancelSpeech, stopNeuralAudio]);
+    stopStreamingAudio();
+  }, [cancelSpeech, stopNeuralAudio, stopStreamingAudio]);
+
+  // STT hook with barge-in callback
+  const handleBargeIn = useCallback(() => {
+    stopAllAudio();
+  }, [stopAllAudio]);
 
   const handleSendMessage = useCallback(
     (text: string) => {
-      cancelSpeech();
-      stopNeuralAudio();
+      stopAllAudio();
       sendMessage(text, selectedAvatar);
     },
-    [sendMessage, selectedAvatar, cancelSpeech, stopNeuralAudio]
+    [sendMessage, selectedAvatar, stopAllAudio]
   );
 
   const {
@@ -71,9 +96,9 @@ export const App = () => {
     if (isWaving) return "waving";
     if (isListening) return "listening";
     if (isLoading) return "thinking";
-    if (isSpeaking || isAudioPlaying) return "speaking";
+    if (isSpeaking || isAudioPlaying || isStreamingAudioPlaying) return "speaking";
     return "idle";
-  }, [isWaving, isListening, isLoading, isSpeaking, isAudioPlaying]);
+  }, [isWaving, isListening, isLoading, isSpeaking, isAudioPlaying, isStreamingAudioPlaying]);
 
   const assistantName = selectedAvatar === "male" ? "Alex" : "Sophia";
   const assistantRole =
@@ -83,11 +108,10 @@ export const App = () => {
 
   // Trigger interactive wave greeting
   const handleTriggerWave = () => {
-    cancelSpeech();
-    stopNeuralAudio();
+    stopAllAudio();
     setIsWaving(true);
-    if (voiceResponsesEnabled && isSpeechSupported) {
-      speak(
+    if (voiceResponsesEnabled) {
+      playStreamAudio(
         `Hello! Welcome to APIIT Sri Lanka. I am ${assistantName}, your AI Admissions and Marketing Coordinator. How may I assist you with your higher education journey today?`,
         selectedAvatar
       );
@@ -99,13 +123,12 @@ export const App = () => {
 
   // Reset conversation session
   const handleResetSession = useCallback(() => {
-    cancelSpeech();
-    stopNeuralAudio();
+    stopAllAudio();
     stopListening();
     clearConversation();
     setIsWaving(false);
     lastSpokenMessageId.current = null;
-  }, [cancelSpeech, stopNeuralAudio, stopListening, clearConversation]);
+  }, [stopAllAudio, stopListening, clearConversation]);
 
   // Inactivity Auto-Reset Timer for public kiosk readiness
   useEffect(() => {
@@ -134,7 +157,7 @@ export const App = () => {
     };
   }, [messages.length, handleResetSession]);
 
-  // Automatically speak new assistant responses using Neural Voice or Fallback TTS
+  // Automatically speak new assistant responses using Progressive Audio Stream or Neural Voice
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
 
@@ -150,45 +173,38 @@ export const App = () => {
 
     if (!voiceResponsesEnabled) return;
 
-    // Priority 1: High-fidelity Neural Audio from Backend
+    // Backward compatibility: If an offline full-audio base64 was returned, play it
     if (lastMessage.audio_base64) {
       playNeuralAudio(lastMessage.audio_base64);
       return;
     }
 
-    // Priority 2: Client-side Phonetic Web Speech Synthesis Fallback
-    if (isSpeechSupported) {
-      const speechText = prepareSpeechText(lastMessage.content);
-      speak(speechText, selectedAvatar);
-    }
-  }, [messages, selectedAvatar, isSpeechSupported, voiceResponsesEnabled, speak, playNeuralAudio]);
+    // Default & Preferred: Progressive real-time WebSocket audio streaming
+    playStreamAudio(lastMessage.content, selectedAvatar);
+  }, [messages, selectedAvatar, voiceResponsesEnabled, playNeuralAudio, playStreamAudio]);
 
   // Voice microphone toggle
   const handleVoiceButtonClick = () => {
     if (isListening) {
       stopListening();
     } else {
-      cancelSpeech();
-      stopNeuralAudio();
+      stopAllAudio();
       startListening();
     }
   };
 
   // Replay a specific message aloud
   const handleReplayMessage = (text: string) => {
-    cancelSpeech();
-    stopNeuralAudio();
-    if (isSpeechSupported) {
-      const speechText = prepareSpeechText(text);
-      speak(speechText, selectedAvatar);
+    stopAllAudio();
+    if (voiceResponsesEnabled) {
+      playStreamAudio(text, selectedAvatar);
     }
   };
 
   // Toggle voice responses globally
   const handleToggleVoiceResponses = () => {
     if (voiceResponsesEnabled) {
-      cancelSpeech();
-      stopNeuralAudio();
+      stopAllAudio();
       setVoiceResponsesEnabled(false);
     } else {
       setVoiceResponsesEnabled(true);
@@ -198,8 +214,7 @@ export const App = () => {
   // Switch persona voice smoothly
   const handleAvatarChange = (avatar: AvatarType) => {
     if (avatar === selectedAvatar) return;
-    cancelSpeech();
-    stopNeuralAudio();
+    stopAllAudio();
     setSelectedAvatar(avatar);
   };
 

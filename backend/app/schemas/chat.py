@@ -10,6 +10,7 @@ class ChatRequest(BaseModel):
     session_id: uuid.UUID | None = None
     message: str = Field(min_length=2, max_length=2000)
     avatar_gender: str = "female"
+    stream_audio: bool = True
 
 
 class FAQSource(BaseModel):

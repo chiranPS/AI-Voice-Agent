@@ -4,6 +4,7 @@ export interface ChatRequest {
   session_id: string | null;
   message: string;
   avatar_gender?: "male" | "female";
+  stream_audio?: boolean;
 }
 
 // Unified Source returned by the backend (both Document chunks and FAQs)
