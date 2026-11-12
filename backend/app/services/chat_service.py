@@ -267,11 +267,14 @@ def generate_coordinator_response(
     faq_results: list[dict],
     contact_results: list[UniversityContact],
     is_conversational_turn: bool,
+    avatar_gender: str = "female",
 ) -> str:
     """
     Generate an intelligent, human-like response using Gemini
     governed by the APIIT AI Admissions & Marketing Coordinator persona.
+    Injects the persona coordinator name: Sofia for female, Alex for male.
     """
+    coordinator_name = "Alex" if (avatar_gender or "").lower() in ("male", "puck", "orion") else "Sofia"
     doc_context = build_document_context(document_results)
     contact_context = build_contact_context(contact_results)
 
@@ -292,19 +295,20 @@ def generate_coordinator_response(
 
     if is_conversational_turn:
         user_prompt_parts.append(
-            "Instruction: The visitor is greeting you, asking an identity/audio check, or asking for a clarification. "
-            "Respond naturally, warmly, and helpfully as the APIIT AI Admissions and Marketing Coordinator, "
-            "then guide the dialogue towards their study plans or questions about APIIT."
+            f"Instruction: The visitor is greeting you, asking an identity/audio check (such as 'what is your name' or 'who are you'), or asking for a clarification. "
+            f"Respond naturally, warmly, and helpfully as {coordinator_name}, the APIIT AI Admissions and Marketing Coordinator. "
+            f"State your name explicitly as {coordinator_name} if they inquire about your identity or name, "
+            f"then guide the dialogue towards their study plans or questions about APIIT."
         )
     elif not doc_context and not contact_context:
         user_prompt_parts.append(
-            "Instruction: No specific document chunks matched this factual inquiry. If the question asks for institutional "
+            f"Instruction: You are {coordinator_name}, APIIT AI Admissions Coordinator. No specific document chunks matched this factual inquiry. If the question asks for institutional "
             "details (like unlisted programmes or unannounced fees), state honestly that you do not have that specific detail "
             "in your verified knowledge base, and invite them to speak with our Admissions team at the Colombo campus."
         )
     else:
         user_prompt_parts.append(
-            "Instruction: Answer the visitor's query accurately using the verified APIIT knowledge data above. "
+            f"Instruction: You are {coordinator_name}, APIIT AI Admissions Coordinator. Answer the visitor's query accurately using the verified APIIT knowledge data above. "
             "Highlight relevant academic benefits (Staffordshire University partnership, career prospects, pathways). "
             "Keep the tone consultative and encourage an appropriate next step (e.g. asking their A/L stream or inviting for counseling)."
         )
@@ -319,11 +323,19 @@ def generate_coordinator_response(
         )
     )
 
+    # Inject coordinator identity dynamically
+    active_system_instruction = (
+        f"Your assigned name is {coordinator_name}. You are the official AI Admissions and Marketing Coordinator for "
+        f"Asia Pacific Institute of Information Technology (APIIT) Sri Lanka, operating in partnership with Staffordshire University (UK).\n"
+        f"When introducing yourself, greeting visitors, or responding to questions regarding your name or role, always introduce yourself clearly as {coordinator_name}.\n\n"
+        f"{COORDINATOR_SYSTEM_INSTRUCTION}"
+    )
+
     response = client.models.generate_content(
         model=MODEL_NAME,
         contents=contents,
         config=types.GenerateContentConfig(
-            system_instruction=COORDINATOR_SYSTEM_INSTRUCTION,
+            system_instruction=active_system_instruction,
             temperature=0.3,
             max_output_tokens=600,
         ),
@@ -446,6 +458,7 @@ def process_chat_message(
         faq_results=relevant_faqs,
         contact_results=contact_results,
         is_conversational_turn=is_meta_turn,
+        avatar_gender=avatar_gender,
     )
 
     fallback = False

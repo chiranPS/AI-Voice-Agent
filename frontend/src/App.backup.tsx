@@ -67,7 +67,7 @@ export const App = () => {
   }, [isListening, isLoading, isSpeaking]);
 
   const statusLabel = useMemo(() => {
-    const name = selectedAvatar === "male" ? "Alex" : "Sophia";
+    const name = selectedAvatar === "male" ? "Alex" : "Sofia";
     if (isListening) return "Listening to your voice...";
     if (isLoading) return "Searching knowledge base...";
     if (isSpeaking) return `${name} is speaking...`;
@@ -210,7 +210,7 @@ export const App = () => {
                 }`}
               >
                 <User className="h-3.5 w-3.5" />
-                <span>Female (Sophia)</span>
+                <span>Female (Sofia)</span>
               </button>
             </div>
           </div>

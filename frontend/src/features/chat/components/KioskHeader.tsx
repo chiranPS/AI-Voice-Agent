@@ -219,7 +219,7 @@ export const KioskHeader = ({
 
         {/* ── Right: Integrated Action Controls ── */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Persona Switcher (Sophia / Alex) */}
+          {/* Persona Switcher (Sofia / Alex) */}
           {onAvatarChange && (
             <div className="hidden md:inline-flex items-center rounded-full bg-[#F5F6F7] p-1 border border-[#E5E7EB]">
               <button
@@ -231,10 +231,10 @@ export const KioskHeader = ({
                     ? "bg-[#ED1C24] text-white shadow-xs font-bold"
                     : "text-[#6B7280] hover:text-[#202124]"
                 }`}
-                title="Switch to Sophia (Female Voice)"
+                title="Switch to Sofia (Female Voice)"
               >
                 <User className="h-3 w-3" />
-                <span>Sophia</span>
+                <span>Sofia</span>
               </button>
               <button
                 type="button"

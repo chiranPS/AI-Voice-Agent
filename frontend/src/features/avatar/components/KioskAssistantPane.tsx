@@ -43,10 +43,10 @@ export const KioskAssistantPane: React.FC<KioskAssistantPaneProps> = ({
                 ? "bg-[#ED1C24] text-white font-bold shadow-xs"
                 : "text-[#6B7280] hover:text-[#202124] font-medium"
             }`}
-            title="Switch to Sophia (Female Persona)"
+            title="Switch to Sofia (Female Persona)"
           >
             <User className="h-3 w-3" />
-            <span>Sophia</span>
+            <span>Sofia</span>
           </button>
 
           <button

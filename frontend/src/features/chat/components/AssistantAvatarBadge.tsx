@@ -8,7 +8,7 @@ interface AssistantAvatarBadgeProps {
 }
 
 /**
- * High-quality stylized SVG Portrait Avatar for Sophia & Alex,
+ * High-quality stylized SVG Portrait Avatar for Sofia & Alex,
  * matching the circular assistant badges in the Northstar University Kiosk visual reference.
  */
 export const AssistantAvatarBadge: React.FC<AssistantAvatarBadgeProps> = ({
@@ -23,14 +23,14 @@ export const AssistantAvatarBadge: React.FC<AssistantAvatarBadgeProps> = ({
       ? "h-12 w-12"
       : "h-9 w-9 sm:h-10 sm:w-10";
 
-  const isSophia = gender === "female";
+  const isSofia = gender === "female";
 
   return (
     <div
       className={`relative shrink-0 overflow-hidden rounded-full ring-2 ring-[#E5E7EB] shadow-xs bg-[#F5F6F7] flex items-center justify-center ${sizeClass} ${className}`}
     >
-      {isSophia ? (
-        // Sophia: Warm, professional female assistant portrait
+      {isSofia ? (
+        // Sofia: Warm, professional female assistant portrait
         <svg
           viewBox="0 0 100 100"
           className="h-full w-full object-cover"
@@ -38,7 +38,7 @@ export const AssistantAvatarBadge: React.FC<AssistantAvatarBadgeProps> = ({
           xmlns="http://www.w3.org/2000/svg"
         >
           {/* Background circle gradient */}
-          <circle cx="50" cy="50" r="50" fill="url(#sophia_bg)" />
+          <circle cx="50" cy="50" r="50" fill="url(#sofia_bg)" />
           
           {/* Hair back / Bun */}
           <ellipse cx="50" cy="24" rx="20" ry="14" fill="#3D2314" />
@@ -88,7 +88,7 @@ export const AssistantAvatarBadge: React.FC<AssistantAvatarBadgeProps> = ({
           <path d="M41 68 L50 79 L59 68 Z" fill="#ED1C24" />
 
           <defs>
-            <linearGradient id="sophia_bg" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+            <linearGradient id="sofia_bg" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
               <stop stopColor="#FEECEE" />
               <stop offset="1" stopColor="#F5F6F7" />
             </linearGradient>

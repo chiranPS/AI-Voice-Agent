@@ -6,7 +6,7 @@ import { prepareSpeechText } from "../../../utils/speechText";
  * Enhanced Speech Synthesis Hook supporting Persona Voices (Male & Female)
  * Automatically picks the best available system/browser voice matching the persona:
  * - Male (Alex): Deep, clear male voice (David / Guy / George / Google UK Male)
- * - Female (Sophia): Warm, natural female voice (Jenny / Zira / Samantha / Google US Female)
+ * - Female (Sofia): Warm, natural female voice (Jenny / Zira / Samantha / Google US Female)
  */
 export const useSpeechSynthesis = (defaultAvatarType: AvatarType = "female") => {
   const [isSpeaking, setIsSpeaking] = useState(false);

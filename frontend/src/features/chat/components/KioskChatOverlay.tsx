@@ -53,7 +53,7 @@ export const KioskChatOverlay = ({
   const [userHasScrolledUp, setUserHasScrolledUp] = useState(false);
   const [activeSourceModal, setActiveSourceModal] = useState<ChatSource | null>(null);
 
-  const assistantName = selectedAvatar === "male" ? "Alex" : "Sophia";
+  const assistantName = selectedAvatar === "male" ? "Alex" : "Sofia";
   const assistantRole =
     selectedAvatar === "male"
       ? "AI Admissions Coordinator"

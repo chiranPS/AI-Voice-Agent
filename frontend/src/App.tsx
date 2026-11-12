@@ -100,7 +100,7 @@ export const App = () => {
     return "idle";
   }, [isWaving, isListening, isLoading, isSpeaking, isAudioPlaying, isStreamingAudioPlaying]);
 
-  const assistantName = selectedAvatar === "male" ? "Alex" : "Sophia";
+  const assistantName = selectedAvatar === "male" ? "Alex" : "Sofia";
   const assistantRole =
     selectedAvatar === "male"
       ? "AI Admissions Coordinator"

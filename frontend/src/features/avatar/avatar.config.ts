@@ -13,7 +13,7 @@ export const AVATAR_CONFIGS: Record<AvatarType, AvatarConfig> = {
 
   female: {
     type: "female",
-    name: "Sophia",
+    name: "Sofia",
     modelPath: "/models/female-assistant.glb",
   },
 };

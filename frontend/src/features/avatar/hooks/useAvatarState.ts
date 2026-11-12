@@ -24,7 +24,7 @@ export const useAvatarState = ({
   isSpeaking,
   selectedAvatar,
 }: UseAvatarStateProps): UseAvatarStateReturn => {
-  const avatarName = selectedAvatar === "male" ? "Alex" : "Sophia";
+  const avatarName = selectedAvatar === "male" ? "Alex" : "Sofia";
 
   const avatarState: AvatarState = useMemo(() => {
     if (isListening) return "listening";
