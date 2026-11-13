@@ -4,7 +4,7 @@
 **Academic Partner:** Staffordshire University, United Kingdom  
 **Assessment:** QMINIMORE Pty Ltd – Phase 2 Technical Assessment  
 **Author:** Chiran Samarasekara  
-**Version:** 2.0.0 (Production Release)
+**Version:** 2.0.0 
 
 ---
 
