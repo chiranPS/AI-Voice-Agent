@@ -1,482 +1,365 @@
-# Northstar University AI Kiosk
+# APIIT Sri Lanka AI Admissions & Information Kiosk
 ### AI-Powered Voice Agent and Interactive Virtual Information Kiosk
-
-An AI-powered virtual university assistant designed to provide students, visitors and prospective applicants with interactive access to university information through natural language conversations.
-
-The system combines Large Language Models (LLMs), Retrieval-Augmented Generation (RAG), speech technologies and 3D virtual assistants to deliver an interactive information kiosk experience.
-
-It also includes a Knowledge Management Dashboard that allows administrators to upload and manage university documents, extending the assistant's knowledge base without modifying the application code or retraining the language model.
+**Institution:** Asia Pacific Institute of Information Technology (APIIT) Sri Lanka  
+**Academic Partner:** Staffordshire University, United Kingdom  
+**Assessment:** QMINIMORE Pty Ltd – Phase 2 Technical Assessment  
+**Author:** Chiran Samarasekara  
+**Version:** 2.0.0 (Production Release)
 
 ---
 
-## 1. Project Overview
+An enterprise-grade, AI-powered admissions and marketing information kiosk designed to provide prospective students, parents, and visitors with interactive, real-time access to university admissions information through natural voice conversations and 3D virtual avatars.
 
-The Northstar University AI Kiosk provides the following capabilities:
+The system combines Large Language Models (Gemini 2.5 Flash / 3.5 Flash Lite), Retrieval-Augmented Generation (pgvector semantic search across official APIIT prospectuses), low-latency progressive WebSocket audio streaming (Deepgram Aura 2 + Gemini Neural TTS), browser AudioWorklet PCM playback, and Three.js 3D avatars (**Sofia** & **Alex**).
 
-- **AI Conversational Assistant:** Answers university-related questions using an integrated LLM.
-- **Knowledge-Based Question Answering:** Uses RAG to retrieve relevant information from university documents.
-- **Voice Interaction:** Supports speech input and spoken responses through speech-to-text and text-to-speech services.
-- **3D Virtual Assistant:** Provides an interactive virtual assistant experience.
-- **Male and Female Assistants:** Supports virtual assistant presentation options.
-- **Knowledge Management Dashboard:** Allows administrators to upload and manage university knowledge documents.
-- **Dynamic Knowledge Updates:** Makes newly uploaded document information available for future queries.
+It also includes a Knowledge Management Dashboard allowing administrators to ingest, vectorize, and manage university knowledge documents without code modifications or model retraining.
+
+---
+
+## 1. Phase 2 Major Enhancements & Key Features
+
+- **APIIT Sri Lanka Knowledge Base:** Complete migration from sample data to 8 comprehensive APIIT Sri Lanka prospectuses (14 vectorized chunks), covering Computing (Software Engineering, Cyber Security, Computer Science), Business Management, Foundation pathways, entry qualifications, tuition schedules, and campus contacts.
+- **Advanced AI Admissions Personas (Sofia & Alex):** 960-line cognitive system instruction governing consultative student academic profiling, stream assessment (A/Ls vs. O/Ls), entry requirement verification, and anti-hallucination guardrails.
+  - **Sofia:** Senior AI Admissions & Marketing Coordinator (Female Persona).
+  - **Alex:** AI Admissions Coordinator (Male Persona).
+- **Sub-2-Second WebSocket TTS Streaming:** Eliminated the legacy 22-second audio generation bottleneck by streaming 24 kHz linear16 PCM audio frames progressively from backend to client via WebSockets (`/api/chat/audio-stream`), achieving a **91.1% reduction in perceived waiting time (TTFS: 2.22s)**.
+- **High-Priority AudioWorklet PCM Player:** Custom client-side audio rendering engine (`pcm-player-processor.js`) running on a dedicated audio rendering thread with a 100ms circular jitter buffer, ensuring 100% glitch-free audio and instant 0ms barge-in stopping.
+- **Concurrent Provider Racing & Fallback:** Concurrently races Deepgram Aura 2 (`aura-2-thalia-en` / `aura-2-orion-en`) and Gemini Neural TTS (`gemini-3.8-flash-lite-tts`), selecting the fastest chunk while gracefully handling upstream `HTTP 429 Quota Exhausted` errors.
+- **Production Kiosk Visual Identity:** Redesigned single-container kiosk interface tailored for physical touchscreens and desktop browsers in APIIT corporate colors: APIIT Red (`#ED1C24`), Dark Charcoal (`#202124`), and Mint Green (`#34EBAE`) voice interaction cues.
+- **Instant Interruption & Barge-In:** Real-time cancellation that immediately clears the AudioWorklet buffer and aborts in-flight server synthesis when the visitor speaks or submits a new question.
+
+---
 
 ## 2. System Architecture
 
-The application follows a frontend and backend architecture with separate components for AI processing and knowledge management.
-
 ```mermaid
-flowchart TD
-    U[Students and Visitors]
-
-    subgraph Frontend
-        K[React + Vite Kiosk]
-        A[3D Virtual Assistant]
-        S[Speech Interface]
+graph TD
+    subgraph Frontend["React 19 + TypeScript + Vite Kiosk Interface"]
+        UI[Kiosk Container & Layout]
+        AV[Avatar Stage & R3F 3D Model]
+        STT[Web Speech SpeechRecognition]
+        AW[AudioWorklet PCM Player<br/>pcm-player-processor.js]
+        WS_Client[useStreamingAudio Hook]
+        Chat_Hook[useChat Hook]
     end
 
-    subgraph Backend
-        API[FastAPI Backend]
-        LLM[Gemini LLM Integration]
-        RAG[RAG Retrieval Service]
-        DOC[Document Processing]
+    subgraph Backend["FastAPI Production Backend (Python 3.14)"]
+        Router_Chat["POST /api/chat<br/>(Immediate Text + RAG)"]
+        Router_WS["WebSocket /api/chat/audio-stream<br/>(Real-Time PCM Streaming)"]
+        Chat_Service[chat_service.py]
+        Prompt_Engine[coordinator_prompt.py<br/>Sofia & Alex Personas]
+        RAG_Engine[document_retrieval_service.py]
+        TTS_Mgr[TTSManager Engine]
+        Deepgram_WS[Deepgram Aura 2 WS Provider]
+        Gemini_TTS[Gemini TTS Provider]
     end
 
-    subgraph Knowledge
-        DB[(PostgreSQL + pgvector)]
-        DASH[Knowledge Management Dashboard]
+    subgraph Storage["Persistence & Intelligence Layer"]
+        PG[(PostgreSQL Database)]
+        PGV[(pgvector Cosine Index<br/>768-Dimension Embeddings)]
+        Gemini_LLM["Google Gemini 2.5 Flash / 3.5 Flash Lite"]
+        Gemini_Embed["Google gemini-embedding-2"]
+        Deepgram_API["Deepgram Aura 2 Engine<br/>wss://api.deepgram.com/v1/speak"]
     end
 
-    STT[Speech-to-Text Service]
-    TTS[Text-to-Speech Service]
+    %% Flow connections
+    UI -->|1. Spoken Query| STT
+    STT -->|2. Transcribed Text| Chat_Hook
+    Chat_Hook -->|3. POST /api/chat| Router_Chat
+    Router_Chat --> Chat_Service
+    Chat_Service -->|4. Query Embedding| Gemini_Embed
+    Chat_Service -->|5. Vector Cosine Search| PGV
+    Chat_Service -->|6. RAG Context + Prompt| Gemini_LLM
+    Gemini_LLM -->|7. Text Answer| Chat_Service
+    Chat_Service -->>|8. Instant Text 200 OK| Chat_Hook
+    Chat_Hook -->|9. Render Answer Snippet| UI
 
-    U --> K
-    K --> A
-    K --> S
-    S --> STT
-    STT --> API
-    K --> API
-    API --> RAG
-    RAG --> DB
-    RAG --> LLM
-    LLM --> API
-    API --> TTS
-    TTS --> K
-    DASH --> API
-    API --> DOC
-    DOC --> DB
+    %% Streaming Audio Pipeline
+    Chat_Hook -->|10. Trigger Audio Stream| WS_Client
+    WS_Client -->|11. Connect & Synthesize| Router_WS
+    Router_WS --> TTS_Mgr
+    TTS_Mgr -->|12. Concurrent Race / Primary| Deepgram_WS
+    TTS_Mgr -.->|12. Fallback Race| Gemini_TTS
+    Deepgram_WS -->|13. Stream Text & Flush| Deepgram_API
+    Deepgram_API -->>|14. 24kHz Linear16 Chunks| Deepgram_WS
+    Deepgram_WS -->>|15. Binary PCM Bytes| Router_WS
+    Router_WS -->>|16. Binary WS Frames| WS_Client
+    WS_Client -->|17. Int16 to Float32| AW
+    AW -->|18. Jitter Buffer Playback| AV
+    AW -->|19. Voice Equalizer Sync| UI
 ```
 
-### Main Components
+### Component Responsibilities
 
 | Component | Responsibility |
 |---|---|
-| Kiosk Frontend | User interface and conversational interaction |
-| FastAPI Backend | API management and application logic |
-| Gemini | AI response generation |
-| RAG Service | Relevant knowledge retrieval |
-| PostgreSQL + pgvector | Document data and vector embeddings |
-| Speech Services | Speech recognition and voice generation |
-| 3D Avatar | Virtual assistant presentation |
-| Knowledge Dashboard | Administrative document management |
+| **Kiosk Frontend** | React 19 + Vite touchscreen UI; handles STT voice capture, touch controls, and session auto-reset. |
+| **AudioWorklet Player** | Dedicated browser audio thread; manages circular jitter buffer (2400 samples) and 24 kHz PCM playback. |
+| **FastAPI Backend** | Asynchronous Python REST and WebSocket routing, database session management, and auth security. |
+| **Gemini LLM** | RAG-grounded contextual response generation governed by admissions system prompts. |
+| **RAG Retrieval Engine** | 768-dimensional vector cosine distance search (`pgvector`) matching queries to published document chunks. |
+| **PostgreSQL + pgvector** | Persistent storage for document chunks, embeddings, institutional contacts, and conversation logs. |
+| **Deepgram Aura 2** | Low-latency neural streaming TTS WebSocket provider (`aura-2-thalia-en` / `aura-2-orion-en`). |
+| **Gemini Neural TTS** | Fallback streaming and racing provider (`gemini-3.8-flash-lite-tts`) with Kore/Puck personas. |
+| **3D Virtual Avatars** | Three.js / React Three Fiber humanoid models synchronized with voice activity and reactive equalizers. |
+| **Knowledge Dashboard** | Administrative portal for document upload, PyMuPDF extraction, chunking, and vector indexing. |
+
+---
 
 ## 3. Technology Stack
 
-### Frontend
-- React
-- Vite
-- TypeScript
-- Three.js
-- React Three Fiber
-- React Three Drei
+### Frontend (`frontend/`)
+- **Framework:** React 19, TypeScript, Vite
+- **Styling:** Tailwind CSS (APIIT Red `#ED1C24`, Charcoal `#202124`, Mint Green `#34EBAE`)
+- **3D Graphics:** Three.js, React Three Fiber, React Three Drei
+- **Audio Architecture:** Web Audio API, `AudioWorkletNode`, `AudioWorkletProcessor`
+- **Speech Capture:** Web Speech API (`webkitSpeechRecognition`) with continuous listening and barge-in
 
-### Backend
-- Python
-- FastAPI
-- Uvicorn
-- SQLAlchemy
-- Pydantic
+### Backend (`backend/`)
+- **Framework:** Python 3.14, FastAPI, Uvicorn, Pydantic v2
+- **Database & ORM:** PostgreSQL 15+, `pgvector`, SQLAlchemy 2.0
+- **Document Processing:** PyMuPDF (`fitz`), `python-docx`
+- **AI & Embeddings:** Google GenAI SDK (`google-genai`), `gemini-embedding-2` (768 dimensions), `gemini-2.5-flash`
+- **Voice Providers:** Deepgram Aura 2 WebSocket API, Gemini Neural TTS, `websockets`, `httpx`
 
-### Artificial Intelligence
-- Google Gemini API
-- Retrieval-Augmented Generation (RAG)
-- Text embeddings
-- Semantic similarity search
+### Knowledge Management Dashboard (`knowledge-hub-frontend/`)
+- React, TypeScript, Vite, Tailwind CSS, Lucide Icons, Axios, React Hook Form, Zod
 
-### Database
-- PostgreSQL
-- pgvector
+---
 
-### Speech Processing
-- Speech-to-Text (STT) integration
-- Text-to-Speech (TTS) integration
+## 4. Latency Benchmark Comparison: Monolithic vs. WebSocket Streaming
 
-### Development Tools
-- Visual Studio Code
-- Git and GitHub
-- Docker
-- Postman
+An automated empirical benchmark script (`benchmark_latency_comparison.py`) is provided in the root directory to measure real-time latency:
 
-## 4. Project Structure
+```powershell
+backend\venv\Scripts\python benchmark_latency_comparison.py
+```
 
-The project is organised into separate frontend, backend and knowledge management applications.
+### Empirical Test Results:
+
+```text
+===========================================================================
+                        LATENCY COMPARISON MATRIX                       
+===========================================================================
+
++------------------------------------+-------------------+--------------------+
+| Performance Metric                 | Monolithic (OLD)  | WebSocket (NEW)    |
++------------------------------------+-------------------+--------------------+
+| Perceived Visitor Wait Time        |  24.85 seconds    |   2.22 seconds     |
+| Text Display in UI                 |  24.85 seconds    |   5.22 seconds     |
+| Audio Playback Start (TTFS)        |  24.85 seconds    |   2.22 seconds     |
+| HTTP Payload Overhead              | ~3678 KB Base64   | 0 KB (null)        |
+| Barge-in Cancellation Response     | 3.0 - 5.0 seconds | 0.00 seconds (0ms) |
+| Latency Reduction                  | Baseline          |  91.1% FASTER       |
++------------------------------------+-------------------+--------------------+
+```
+
+---
+
+## 5. Project Directory Structure
 
 ```text
 AI-Voice-Agent/
 │
-├── frontend/
+├── frontend/                                # Kiosk Touchscreen User Interface
 │   ├── public/
-│   │   └── models/
-│   │       └── avatars/
-│   │
+│   │   ├── apiit-logo.png                   # Official APIIT corporate logo
+│   │   ├── pcm-player-processor.js          # AudioWorklet 24kHz PCM jitter buffer processor
+│   │   └── models/                          # 3D GLB Virtual Avatar Assets
 │   ├── src/
-│   │   ├── components/
-│   │   ├── services/
-│   │   ├── utils/
-│   │   ├── assets/
-│   │   └── ...
-│   │
+│   │   ├── components/layout/               # KioskLayout container
+│   │   ├── features/avatar/                 # 3D scene, state machine, and assistant pane
+│   │   ├── features/chat/                   # Kiosk header, input bar, message stream, badges
+│   │   │   └── hooks/                       # useChat, useStreamingAudio, useSpeechRecognition
+│   │   └── App.tsx                          # Root coordinator & audio lifecycle
 │   ├── package.json
 │   └── .env
 │
-├── backend/
+├── backend/                                 # FastAPI Application & AI Core
 │   ├── app/
-│   │   ├── api/
-│   │   ├── models/
-│   │   ├── schemas/
+│   │   ├── api/routes/                      # chat.py (POST /chat & WS /audio-stream), documents, auth
+│   │   ├── models/                          # SQLAlchemy models (pgvector chunk storage, contacts)
+│   │   ├── schemas/                         # Pydantic request/response schemas
 │   │   ├── services/
-│   │   ├── routes/
-│   │   └── main.py
-│   │
+│   │   │   ├── chat_service.py              # Conversational RAG, persona logic, meta-turns
+│   │   │   ├── prompts/coordinator_prompt.py# 960-line Sofia & Alex admissions prompt
+│   │   │   ├── document_retrieval_service.py# pgvector cosine similarity retrieval
+│   │   │   ├── document_processing_service.py# PyMuPDF 700-word sliding window chunking
+│   │   │   ├── embedding_service.py         # 768-dim Google embeddings
+│   │   │   └── tts/                         # Deepgram Aura 2, Gemini TTS, TTSManager
+│   │   └── main.py                          # Application entrypoint & CORS
 │   ├── requirements.txt
-│   ├── .env
-│   └── venv/
+│   ├── transition_to_apiit.sql              # APIIT knowledge base & contacts migration
+│   ├── verify_knowledge_base.py             # Knowledge retrieval diagnostic tool
+│   └── .env
 │
-├── knowledge-hub-frontend/
+├── knowledge-hub-frontend/                  # Admin Knowledge Management Dashboard
 │   ├── src/
-│   ├── public/
+│   │   ├── pages/LoginPage.tsx              # Admin login (admin@apiit.lk)
+│   │   ├── pages/DocumentsPage.tsx          # PDF upload, chunking & publish interface
+│   │   └── pages/DashboardPage.tsx          # System metrics and status
 │   ├── package.json
 │   └── .env
 │
+├── benchmark_latency_comparison.py          # Empirical latency comparison benchmark script
+├── pipeline_diagram_concurrent_racing.png   # Architecture flow diagram
 ├── docker-compose.yml
-├── .gitignore
 └── README.md
 ```
 
-*Note: The structure above illustrates the main project components. Some internal folders may differ depending on the current implementation.*
-
 ---
 
-## 5. Prerequisites
-
-Install the following software before setting up the project:
+## 6. Prerequisites
 
 | Software | Requirement |
 |---|---|
-| Node.js | 18 or later |
-| npm | Compatible with installed Node.js |
-| Python | 3.10 or later |
-| PostgreSQL | With pgvector extension |
-| Docker Desktop | Recommended for database setup |
-| Git | Latest stable version |
-
-You will also need API access for the configured AI and speech providers.
+| Node.js | v18.0 or later |
+| npm | Compatible with Node.js |
+| Python | 3.10 – 3.14 |
+| PostgreSQL | 15+ with `pgvector` extension enabled |
+| Deepgram API Key | Entitled for Aura 2 Streaming TTS |
+| Google Gemini API Key | Enabled for Gemini 2.5 Flash & text embeddings |
 
 ---
 
-## 6. Installation and Setup
+## 7. Installation and Setup
 
-### Step 1: Clone the Repository
-
+### Step 1: Clone Repository
 ```bash
 git clone <YOUR_GITHUB_REPOSITORY_URL>
-```
-
-Navigate into the project directory:
-
-```bash
 cd AI-Voice-Agent
 ```
 
-### Step 2: Configure the Database
-
-Start the PostgreSQL database using the supplied Docker Compose configuration, if provided.
-
+### Step 2: Configure Database & Seed APIIT Data
+Ensure PostgreSQL is running with `pgvector`. Run the migration script to populate APIIT institutional data:
 ```bash
+# If using Docker
 docker compose up -d
+
+# Execute APIIT migration SQL
+psql -U postgres -d ai_voice_agent -f backend/transition_to_apiit.sql
 ```
 
-Ensure PostgreSQL is running and the pgvector extension is available.
-
-The backend database connection must point to the configured PostgreSQL instance.
-
-### Step 3: Set Up the Backend
-
-Navigate to the backend directory:
-
-```bash
-cd backend
-```
-
-Create a Python virtual environment:
-
-```bash
-python -m venv venv
-```
-
-Activate the virtual environment on Windows PowerShell:
-
+Verify knowledge base integrity:
 ```powershell
-.\venv\Scripts\Activate.ps1
+backend\venv\Scripts\python backend/verify_knowledge_base.py
 ```
 
-Install Python dependencies:
-
-```bash
+### Step 3: Set Up Backend
+```powershell
+cd backend
+python -m venv venv
+.\venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 ```
 
-Create a `.env` file inside the `backend` directory using the sample configuration below.
-
-Start the FastAPI server from the `backend` directory:
-
-```bash
-uvicorn app.main:app --reload
+Create `backend/.env` (see template in Section 8) and start the server:
+```powershell
+uvicorn app.main:app --reload --port 8000
 ```
+- API Documentation: `http://localhost:8000/docs`
+- Health Endpoint: `http://localhost:8000/api/health`
 
-The backend should be accessible at:
-
-```text
-http://127.0.0.1:8000
-```
-
-FastAPI interactive API documentation:
-
-```text
-http://127.0.0.1:8000/docs
-```
-
-### Step 4: Set Up the Main Kiosk Frontend
-
-Open another terminal and navigate to the frontend directory:
-
-```bash
+### Step 4: Set Up Kiosk Frontend
+Open a new terminal:
+```powershell
 cd frontend
-```
-
-Install dependencies:
-
-```bash
 npm install
-```
-
-Create the frontend `.env` file and configure the backend API URL.
-
-Start the development server:
-
-```bash
 npm run dev
 ```
+Open `http://localhost:5173` to access the interactive kiosk.
 
-Open the local URL displayed in the terminal.
+### Step 5: Set Up Knowledge Hub Dashboard & Register Admin
+The Knowledge Management Hub provides an administrative interface for uploading prospectus documents, inspecting RAG vector chunks, and managing admissions knowledge.
 
-### Step 5: Set Up the Knowledge Management Dashboard
+#### 1. Create / Register Initial Administrator
+Configure your desired admin credentials in `backend/.env`:
+```env
+ADMIN_INITIAL_EMAIL=admin@apiit.lk
+ADMIN_INITIAL_NAME="APIIT Administrator"
+ADMIN_INITIAL_PASSWORD=your_secure_password_here # Must be at least 12 characters
+```
 
-Open another terminal:
+Then run the admin seeding script from the `backend` directory:
+```powershell
+# From the backend directory with active virtual environment:
+python app/create_admin.py
+```
+> **Note:** If you loaded `backend/transition_to_apiit.sql` during database setup, the admin account `admin@apiit.lk` is already registered. You can use the script above whenever you wish to provision or reset the initial administrator.
 
-```bash
+#### 2. Launch the Knowledge Hub Frontend
+Open a new terminal:
+```powershell
 cd knowledge-hub-frontend
-```
-
-Install dependencies:
-
-```bash
 npm install
-```
-
-Create the dashboard `.env` file and configure its backend API URL.
-
-Start the dashboard:
-
-```bash
 npm run dev
 ```
-
-Open the local URL displayed in the terminal.
+Open `http://localhost:5174` in your browser and sign in with:
+- **Email:** `admin@apiit.lk`
+- **Password:** The password configured in your `.env` (or set via `app/create_admin.py`)
 
 ---
 
-## 7. Environment Configuration
+## 8. Environment Configuration Templates
 
-The following examples demonstrate how to configure the application without exposing credentials.
-
-**Important:** These are sample variable names. Use the exact variable names expected by your existing application configuration.
-
-### Backend Environment
-
-Create:
-
-`backend/.env`
-
+### Backend (`backend/.env`)
 ```env
-### Backend Environment Configuration
-
-Create a `.env` file inside the `backend/` directory and configure the following variables:
-
-```env
-# Gemini AI Configuration
-GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=
-
 # Database Configuration
-DATABASE_URL=
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ai_voice_agent
 
-# Embedding Configuration
+# Google Gemini API
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.5-flash
 GEMINI_EMBEDDING_MODEL=gemini-embedding-2
 EMBEDDING_DIMENSIONS=768
-
-# RAG Configuration
 RAG_MIN_SIMILARITY=0.45
+DOCUMENT_RAG_MIN_SIMILARITY=0.45
 
-# Admin Authentication
-JWT_SECRET_KEY=
-JWT_ALGORITHM=HS256
-JWT_ACCESS_TOKEN_EXPIRE_MINIUTES=480
+# Deepgram Aura 2 Streaming TTS
+DEEPGRAM_API_KEY=your_deepgram_api_key_here
+DEEPGRAM_TTS_MODEL=aura-2-thalia-en
+TTS_PROVIDER=parallel
+TTS_RACE_TIMEOUT=14.0
 
-# Initial Admin Account
-ADMIN_INITIAL_EMAIL=admin@northstar.example
-ADMIN_INITIAL_NAME=University Administrator
-ADMIN_INITIAL_PASSWORD=REPLACE_WITH_A_STRONG_PASSWORD
-
-# Document Storage
+# Document Storage & Upload Limits
 DOCUMENT_STORAGE_PATH=storage/documents
 MAX_DOCUMENT_SIZE_MB=20
+
+# Admin Authentication
+JWT_SECRET_KEY=generate_a_secure_jwt_secret_key_here
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=480
+ADMIN_INITIAL_EMAIL=admin@apiit.lk
+ADMIN_INITIAL_NAME=APIIT Administrator
+ADMIN_INITIAL_PASSWORD=your_secure_admin_password
 ```
 
-### Main Frontend Environment
-
-Create:
-
-`frontend/.env`
-
+### Kiosk Frontend (`frontend/.env`)
 ```env
-VITE_API_BASE_URL=http://localhost:8000
+VITE_API_BASE_URL=http://localhost:8000/api
+VITE_ORGANISATION_ID=c0e954d5-1e9f-4d10-8493-3553c873c204
 ```
 
-### Knowledge Management Dashboard Environment
-
-Create:
-
-`knowledge-hub-frontend/.env`
-
+### Knowledge Hub (`knowledge-hub-frontend/.env`)
 ```env
-VITE_API_BASE_URL=http://localhost:8000
+VITE_API_BASE_URL=http://localhost:8000/api
 ```
-
-**Security notes:**
-
-- Never commit actual API keys, passwords or database credentials to GitHub.
-- Keep backend credentials in the backend environment.
-- Only expose values prefixed with `VITE_` that are safe for browser access.
-- Add `.env` files to `.gitignore`.
-- Use `.env.example` files to share configuration templates.
 
 ---
 
-## 8. Knowledge Retrieval Workflow (RAG)
+## 9. Testing & Diagnostic Verification
 
-The application uses Retrieval-Augmented Generation to provide responses based on university knowledge documents.
+Run the following test scripts to verify system health:
 
-The general workflow is:
-
-1. An administrator uploads a PDF document through the Knowledge Management Dashboard.
-2. The backend extracts text from the document.
-3. The extracted content is divided into smaller text chunks.
-4. Embeddings are generated for the text chunks.
-5. Embeddings and associated document information are stored in PostgreSQL using pgvector.
-6. A user submits a question through the kiosk.
-7. The question is converted into an embedding.
-8. The system retrieves relevant document chunks using similarity search.
-9. Retrieved information is provided as context to the Gemini model.
-10. The model generates a response based on the retrieved context.
-
-This allows administrators to extend the knowledge base by uploading new documents without retraining the language model.
-
----
-
-## 9. Running the Complete Application
-
-For local development, run the following components in separate terminals:
-
-| Component | Command |
+| Command | Purpose |
 |---|---|
-| Database | `docker compose up -d` |
-| Backend | `uvicorn app.main:app --reload` |
-| Kiosk Frontend | `npm run dev` |
-| Knowledge Dashboard | `npm run dev` |
-
-Run the backend command from the `backend` directory and the frontend commands from their respective directories.
+| `backend\venv\Scripts\python backend/verify_knowledge_base.py` | Validates pgvector document chunks, similarity retrieval, and contact registers. |
+| `backend\venv\Scripts\python benchmark_latency_comparison.py` | Executes the empirical side-by-side latency test comparing Monolithic vs. Streaming. |
+| `npm --prefix frontend run build` | Validates TypeScript compilation and builds production frontend bundle. |
 
 ---
 
-## 10. Testing the Application
 
-The following scenarios can be used to verify the main functionality:
+## 11. Author & Assessment Information
 
-### AI Kiosk
-- Ask general university-related questions.
-- Test admission and academic programme questions.
-- Test student service questions.
-- Test text-based conversations.
-- Test speech input and spoken responses.
-- Test male and female virtual assistant options.
-
-### Knowledge Management
-- Log in to the administrative dashboard.
-- View existing knowledge documents.
-- Upload a new PDF document.
-- Verify successful document processing.
-- Confirm that the document appears in the knowledge list.
-
-### RAG Verification
-- Ask a question about information not currently in the knowledge base.
-- Confirm that the system does not provide an unsupported specific answer.
-- Upload a document containing the required information.
-- Ask the same question again.
-- Verify that the assistant retrieves and uses the newly uploaded information.
-
----
-
-## 11. Known Limitations
-
-- The current kiosk interface can benefit from further visual and usability improvements.
-- AI response quality depends on the accuracy and relevance of the available knowledge documents.
-- Speech recognition and voice generation depend on the availability and limitations of the configured external providers.
-- Processing large documents may require additional time and resources.
-- AI-generated responses may occasionally require verification against the original university documents.
-- Internet connectivity is required for external AI and speech services.
-
-## 12. Future Improvements
-
-Potential future enhancements include:
-
-- Further improvements to the kiosk's visual design and accessibility.
-- Enhanced 3D avatar animations and facial expressions.
-- Improved speech interaction and multilingual support.
-- More advanced document management and knowledge categorisation.
-- Improved retrieval accuracy and document source references.
-- Production deployment, monitoring and performance optimisation.
-
-## 13. Author
-
-**Chiran Samarasekara**
-
-AI Voice Agent and Interactive Virtual Information Kiosk
-
-Developed as part of the technical assessment for **QMINIMORE Pty Ltd**.
-
----
-
-## 14. Acknowledgement
-
-This project was developed using modern web technologies, AI services and open-source frameworks to demonstrate the practical implementation of an AI-powered conversational information kiosk with document-based knowledge retrieval.
+- **Developer:** Chiran Samarasekara

@@ -38,12 +38,18 @@ def create_initial_admin():
     try:
         organisation = db.scalar(
             select(Organisation).where(
-                Organisation.name == "Northstar University"
+                (Organisation.name.ilike("%APIIT%")) |
+                (Organisation.id == "c0e954d5-1e9f-4d10-8493-3553c873c204") |
+                (Organisation.name == "Northstar University")
             )
         )
 
         if organisation is None:
-            print("Northstar University was not found in the database.")
+            # Fallback to the first available organisation
+            organisation = db.scalar(select(Organisation))
+
+        if organisation is None:
+            print("No organisation was found in the database. Please run migrations first.")
             sys.exit(1)
 
         existing_admin = db.scalar(

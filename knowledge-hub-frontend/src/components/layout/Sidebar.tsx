@@ -43,7 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             </div>
             <div>
               <h1 className="text-sm font-bold tracking-tight text-slate-900 leading-tight">
-                Northstar University
+                APIIT Knowledge Hub
               </h1>
               <p className="text-xs font-medium text-slate-500">
                 Knowledge Hub
@@ -104,7 +104,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 {admin?.full_name || "Administrator"}
               </p>
               <p className="text-[11px] text-slate-500 truncate">
-                {admin?.email || "admin@northstar.example"}
+                {admin?.email || "admin@apiit.lk"}
               </p>
             </div>
           </div>

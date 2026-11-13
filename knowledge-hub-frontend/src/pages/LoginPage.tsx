@@ -47,7 +47,7 @@ export const LoginPage: React.FC = () => {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "admin@northstar.example",
+      email: "admin@apiit.lk",
       password: "",
     },
   });
@@ -123,7 +123,7 @@ export const LoginPage: React.FC = () => {
                   type="email"
                   autoComplete="email"
                   {...register("email")}
-                  placeholder="admin@northstar.example"
+                  placeholder="admin@apiit.lk"
                   className={`w-full rounded-lg border py-2.5 pl-9 pr-3 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 transition ${
                     errors.email
                       ? "border-rose-300 focus:border-rose-500 focus:ring-rose-500 bg-rose-50/20"

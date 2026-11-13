@@ -10,7 +10,7 @@ const Header = () => {
 
         <div>
           <h1 className="text-lg font-bold text-slate-900">
-            Northstar University
+            APIIT Knowledge Hub
           </h1>
 
           <p className="text-xs text-slate-500">

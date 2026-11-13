@@ -52,7 +52,7 @@ const ChatWindow = ({
             </div>
 
             <h3 className="text-lg font-semibold text-slate-800">
-              Welcome to Northstar University
+              Welcome to APIIT Knowledge Hub
             </h3>
 
             <p className="mt-2 max-w-sm text-sm text-slate-500">
